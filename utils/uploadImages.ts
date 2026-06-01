@@ -13,7 +13,7 @@ cloudinary.v2.config({
 export default cloudinary;
 export const uploadImage = async (file: string) => {
   const result = await cloudinary.v2.uploader.upload(file, {
-    folder: "products",
+    folder: "maintenance-app",
   });
 
   return {

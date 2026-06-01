@@ -1,81 +1,62 @@
-import jwt, { JwtPayload, Secret } from "jsonwebtoken";
-import userModel from "../models/user.model.js";
-import ErrorHandler from "../utils/ErrorHandler.js";
-import sendMail from "../utils/sendMail.js";
-import { CatchAsyncError } from "./catchAsyncError.js";
 import { Request, Response, NextFunction } from "express";
+import { CatchAsyncError } from "./catchAsyncError.js";
+import jwt, { JwtPayload } from "jsonwebtoken";
+
+import ErrorHandler from "../utils/ErrorHandler.js";
+import userModel from "../models/user.model.js";
+import { updateAccessToken } from "../controllers/user.controller.js";
 
 
-//register user
-interface IRegistrationBody {
-  name: string;
-  email: string;
-  password: string;
-  avatar?: string;
-  role: string;
-}
-
-export const registrationUser = CatchAsyncError(
+export const isAuthenticated = CatchAsyncError(
   async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const { name, email, password, role = "user" } = req.body;
-      if (!name || !email || !password) {
-        return next(new ErrorHandler("All fields are required", 400));
-      }
+    
+    // ← يقرأ من header أو cookie
+    const authHeader = req.headers.authorization;
+  
+    const ACCESS_TOKEN_SECRET = authHeader?.startsWith('Bearer ')
+      ? authHeader.split(' ')[1]
+      : req.cookies.ACCESS_TOKEN_SECRET as string;
 
-      const isEmailExist = await userModel.findOne({ email });
-      if (isEmailExist) {
-        return next(new ErrorHandler("Email is already exist", 400));
-      }
-      const user: IRegistrationBody = {
-        name,
-        email,
-        password,
-        role,
-      };
-      const activationToken = createActivationToken(user);
-      const activationCode = activationToken.activationCode;
-      const data = { user: { name: user.name }, activationCode };
-
-      try {
-        await sendMail({
-          email: user.email,
-          subject: "Activate your account.",
-          template: "activation-mail.ejs",
-          data,
-        });
-        res.status(201).json({
-          success: true,
-          message: `Please check your email:${user.email} to activate your account `,
-          activationToken: activationToken.token,
-        });
-      } catch (error: any) {
-        return next(new ErrorHandler(error.message, 400));
-      }
-    } catch (error: any) {
-      return next(new ErrorHandler(error.message, 400));
+    if (!ACCESS_TOKEN_SECRET) {
+      return next(new ErrorHandler("Please login to access this resource", 401));
     }
-  },
+console.log("ACCESS TOKEN:", ACCESS_TOKEN_SECRET);
+
+    try {
+      const decoded = jwt.verify(
+        ACCESS_TOKEN_SECRET,
+        process.env.ACCESS_TOKEN_SECRET as string
+      ) as JwtPayload;
+
+      const user = await userModel.findById(decoded.id);
+      if (!user) return next(new ErrorHandler("User not found", 404));
+
+      req.user = user;
+      next();
+    } catch (error: any) {
+      if (error.name === "TokenExpiredError") {
+        return updateAccessToken(req, res, next);
+        
+      }
+      console.log(error);
+      return next(new ErrorHandler("Invalid access token", 401));
+    }
+  }
 );
 
-
-// activate token
-interface IActivationToken {
-  token: string;
-  activationCode: string;
-}
-export const createActivationToken = (user: any): IActivationToken => {
-  const activationCode = Math.floor(1000 + Math.random() * 9000).toString();
-
-  const token = jwt.sign(
-    {
-      user,
-      activationCode,
-    },
-    process.env.ACTIVATION_SECRET as Secret,
-    {
-      expiresIn: "5m",
-    },
-  );
-  return { token, activationCode };
+export const authorizeRoles = (...roles: string[]) => {
+  return (req: Request, res: Response, next: NextFunction) => {
+    if (!req.user?.role) {
+      return next(new ErrorHandler("User role is not defined", 400));
+    }
+    if (!roles.includes(req.user.role)) {
+      return next(
+        new ErrorHandler(
+          `Role: ${req.user.role} is not allowed to access this resource`,
+          403
+        )
+      );
+    }
+    next();
+  };
 };

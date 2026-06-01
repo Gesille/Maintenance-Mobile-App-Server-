@@ -8,8 +8,8 @@ const emailRegexPattern: RegExp = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export const ROLES = {
   USER: "user",
-  ADMIN: "admin",
-  CASHIER:"cashier"
+  MANAGER: "manager",
+  TECHNICIAN:"technician",
 } as const;
 
 export interface IUser extends Document {
@@ -97,13 +97,11 @@ const userSchema: Schema<IUser> = new mongoose.Schema(
 );
 
 //Mash Password before saving
-userSchema.pre<IUser>("save", async function (next:any) {
+userSchema.pre("save", async function () {
   if (!this.isModified("password")) {
-    next();
+    return;
   }
-  //10 round is to hard
   this.password = await bcrypt.hash(this.password, 10);
-  next();
 });
 
 //sign access token
