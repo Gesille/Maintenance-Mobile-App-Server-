@@ -1,4 +1,6 @@
 import cloudinary from "cloudinary"
+import fs from "fs";
+
 
 import dotenv from "dotenv";
 
@@ -10,14 +12,21 @@ cloudinary.v2.config({
   api_secret: process.env.CLOUD_API_SECRET,
 });
 
-export default cloudinary;
-export const uploadImage = async (file: string) => {
-  const result = await cloudinary.v2.uploader.upload(file, {
+export const uploadMedia = async (
+  filePath: string,
+  resourceType: "image" | "video" = "image",
+) => {
+  const result = await cloudinary.v2.uploader.upload(filePath, {
     folder: "maintenance-app",
+    resource_type: resourceType,
   });
+
+  // remove temp file after upload
+  fs.unlinkSync(filePath);
 
   return {
     url: result.secure_url,
     public_id: result.public_id,
+    resource_type: result.resource_type,
   };
 };

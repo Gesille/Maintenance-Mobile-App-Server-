@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Maintenance Request #<%= id %></title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght=400;500&family=DM+Mono:wght=400;500&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: #f0ede8;
+      font-family: 'DM Sans', sans-serif;
+      color: #1a1a1a;
+      padding: 20px 16px 32px;
+    }
+
+    .wrap {
+      max-width: 420px;
+      margin: 0 auto;
+    }
+
+    /* Header */
+    .header {
+      background: #185fa5;
+      border-radius: 16px;
+      padding: 18px 14px; /* تم تقليل الـ padding الجانبي ليتناسب مع توزيع الجدول */
+      margin-bottom: 12px;
+    }
+
+    .header-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 4px;
+      padding-top: 4px;
+    }
+
+    .header-title {
+      font-size: 17px;
+      font-weight: 500;
+      color: #e6f1fb;
+    }
+
+    .header-id {
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      color: #85b7eb;
+      margin-bottom: 14px;
+      padding-left: 4px;
+    }
+
+    .badge {
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      padding: 5px 10px;
+      border-radius: 20px;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .badge-low      { background: #eaf3de; color: #3b6d11; }
+    .badge-medium   { background: #faeeda; color: #854f0b; }
+    .badge-high     { background: #faeeda; color: #854f0b; }
+    .badge-critical { background: #fcebeb; color: #a32d2d; }
+
+    /* الطريقة الجديدة: جدول ثابت ومضمون للاصطفاف الأفقي */
+    .header-chips-table {
+      width: 100%;
+      table-layout: fixed; /* إجبار الأعمدة على تقسيم المساحة بالتساوي بالملي */
+      border-collapse: separate;
+      border-spacing: 6px 0; /* يصنع مسافة أفقية فاصلة (Gap) بين المربعات ومنع الالتصاق */
+    }
+
+    .hchip-cell {
+      width: 33.333%;
+      vertical-align: top;
+    }
+
+    .hchip-inner {
+      background: #0c447c;
+      border-radius: 10px;
+      padding: 10px 8px;
+      min-height: 54px; /* توحيد ارتفاع المربعات لشكل متناسق */
+    }
+
+    .hchip-label {
+      font-size: 10px;
+      letter-spacing: 0.6px;
+      text-transform: uppercase;
+      color: #85b7eb;
+      margin-bottom: 3px;
+    }
+
+    .hchip-value {
+      font-size: 13px;
+      font-weight: 500;
+      color: #e6f1fb;
+      overflow: hidden;
+      text-overflow: ellipsis; /* يضع نقاط ثلاثية إذا كان النص طويلاً جداً لحماية التصميم */
+      white-space: nowrap;
+    }
+
+    /* Sections */
+    .section {
+      background: #ffffff;
+      border: 0.5px solid #e0dbd3;
+      border-radius: 14px;
+      padding: 16px;
+      margin-bottom: 12px;
+    }
+
+    .section-label {
+      font-size: 10px;
+      font-weight: 500;
+      letter-spacing: 1.2px;
+      text-transform: uppercase;
+      color: #185fa5;
+      margin-bottom: 10px;
+    }
+
+    .description {
+      font-size: 14px;
+      line-height: 1.65;
+      color: #333;
+      border-left: 2px solid #378add;
+      padding-left: 12px;
+    }
+
+    /* Equipment grid */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .cell {
+      padding: 10px 0;
+      border-bottom: 0.5px solid #f0ede8;
+    }
+
+    .cell:nth-child(odd)  { padding-right: 12px; }
+    .cell:nth-child(even) { padding-left: 12px; border-left: 0.5px solid #f0ede8; }
+    .cell:nth-last-child(1),
+    .cell:nth-last-child(2) { border-bottom: none; }
+
+    .cell-label {
+      font-size: 10px;
+      font-weight: 500;
+      letter-spacing: 0.6px;
+      text-transform: uppercase;
+      color: #aaa;
+      margin-bottom: 2px;
+    }
+
+    .cell-value {
+      font-size: 13px;
+      font-weight: 500;
+      color: #1a1a1a;
+    }
+
+    .cell-value.mono {
+      font-family: 'DM Mono', monospace;
+      font-size: 12px;
+    }
+
+    .cell-value.empty {
+      color: #ccc;
+      font-style: italic;
+      font-weight: 400;
+    }
+
+    /* Footer */
+    .footer {
+      text-align: center;
+      font-size: 11px;
+      color: #aaa;
+      padding: 4px 0 8px;
+    }
+
+    .footer span {
+      font-family: 'DM Mono', monospace;
+      color: #185fa5;
+    }
+
+    /* تم تعديل الميديا كويري لتناسب الشاشات الصغيرة جداً دون التأثير على الترتيب الأفقي */
+    @media (max-width: 360px) {
+      .header-chips-table { border-spacing: 4px 0; }
+      .hchip-value { font-size: 11px; }
+    }
+  </style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="header">
+    <div class="header-top">
+      <p class="header-title">&#128295; Maintenance Request</p>
+      <span class="badge badge-<%= priority.toLowerCase() %>"><%= priority %></span>
+    </div>
+    <p class="header-id">REQ-<%= id %> &nbsp;·&nbsp; <%= new Date().toUTCString() %></p>
+    
+    <table class="header-chips-table" cellpadding="0" cellspacing="0" border="0">
+      <tr>
+        <td class="hchip-cell">
+          <div class="hchip-inner">
+            <div class="hchip-label">Reporter</div>
+            <div class="hchip-value"><%= reportedBy %></div>
+          </div>
+        </td>
+        <td class="hchip-cell">
+          <div class="hchip-inner">
+            <div class="hchip-label">Equipment</div>
+            <div class="hchip-value"><%= equipment.name %></div>
+          </div>
+        </td>
+        <td class="hchip-cell">
+          <div class="hchip-inner">
+            <div class="hchip-label">Team</div>
+            <div class="hchip-value"><%= equipment.maintenanceTeam || '—' %></div>
+          </div>
+        </td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="section">
+    <div class="section-label">Issue description</div>
+    <p class="description"><%= description %></p>
+  </div>
+
+  <div class="section">
+    <div class="section-label">Equipment details</div>
+    <div class="grid">
+
+      <div class="cell">
+        <div class="cell-label">Asset code</div>
+        <div class="cell-value mono <%= !equipment.assetCode ? 'empty' : '' %>"><%= equipment.assetCode || 'N/A' %></div>
+      </div>
+
+      <div class="cell">
+        <div class="cell-label">Restaurant</div>
+        <div class="cell-value <%= !equipment.restaurant ? 'empty' : '' %>"><%= equipment.restaurant || 'N/A' %></div>
+      </div>
+
+      <div class="cell">
+        <div class="cell-label">Location</div>
+        <div class="cell-value <%= !equipment.location ? 'empty' : '' %>"><%= equipment.location || 'N/A' %></div>
+      </div>
+
+      <div class="cell">
+        <div class="cell-label">Category</div>
+        <div class="cell-value <%= !equipment.category ? 'empty' : '' %>"><%= equipment.category || 'N/A' %></div>
+      </div>
+
+      <div class="cell">
+        <div class="cell-label">Model</div>
+        <div class="cell-value mono <%= !equipment.model ? 'empty' : '' %>"><%= equipment.model || 'N/A' %></div>
+      </div>
+
+      <div class="cell">
+        <div class="cell-label">Serial no.</div>
+        <div class="cell-value mono <%= !equipment.serialNumber ? 'empty' : '' %>"><%= equipment.serialNumber || 'N/A' %></div>
+      </div>
+
+     
+
+      <div class="cell">
+        <div class="cell-label">Vendor</div>
+        <div class="cell-value <%= !equipment.vendor ? 'empty' : '' %>"><%= equipment.vendor || 'N/A' %></div>
+      </div>
+
+      <div class="cell">
+        <div class="cell-label">Vendor ref</div>
+        <div class="cell-value mono <%= !equipment.vendorReference ? 'empty' : '' %>"><%= equipment.vendorReference || 'N/A' %></div>
+      </div>
+
+      
+      <div class="cell">
+        <div class="cell-label">Request date</div>
+        <div class="cell-value mono <%= !equipment.effectiveDate ? 'empty' : '' %>"><%= equipment.effectiveDate || 'N/A' %></div>
+      </div>
+
+      
+    </div>
+    <% if (media?.length) { %>
+  <div class="section">
+    <div class="section-label">
+      Damage Evidence
+    </div>
+
+    <table width="100%" cellpadding="0" cellspacing="0" border="0">
+      <tr>
+        <td>
+
+          <% media.forEach((item) => { %>
+
+            <% if (item.type === 'image') { %>
+
+              <div style="margin-bottom:14px;">
+                <img
+                  src="<%= item.url %>"
+                  alt="Damage image"
+                  style="
+                    width:100%;
+                    max-width:360px;
+                    border-radius:12px;
+                    border:1px solid #e5e5e5;
+                    display:block;
+                  "
+                />
+              </div>
+
+            <% } %>
+
+            <% if (item.type === 'video') { %>
+
+              <div
+                style="
+                  background:#f8f8f8;
+                  border:1px solid #ececec;
+                  border-radius:12px;
+                  padding:14px;
+                  margin-bottom:12px;
+                "
+              >
+                <div
+                  style="
+                    font-size:13px;
+                    color:#666;
+                    margin-bottom:6px;
+                  "
+                >
+                  🎥 Damage video
+                </div>
+
+                <a
+                  href="<%= item.url %>"
+                  style="
+                    color:#185fa5;
+                    font-size:14px;
+                    font-weight:600;
+                    text-decoration:none;
+                  "
+                >
+                  View uploaded video
+                </a>
+              </div>
+
+            <% } %>
+
+          <% }) %>
+
+        </td>
+      </tr>
+    </table>
+  </div>
+<% } %>
+  </div>
+
+  <div class="footer">
+    Sent via Maintenance Mobile App &nbsp;·&nbsp; <span>REQ-<%= id %></span>
+  </div>
+
+</div>
+</body>
+</html>

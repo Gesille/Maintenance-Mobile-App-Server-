@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Support Ticket #<%= id %></title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: #f4f5f7;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+      color: #172b4d;
+      padding: 32px 16px;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    .email { max-width: 560px; margin: 0 auto; }
+
+    .topbar {
+      background: #0052cc;
+      border-radius: 8px 8px 0 0;
+      height: 6px;
+    }
+
+    .card {
+      background: #ffffff;
+      border: 1px solid #dfe1e6;
+      border-top: none;
+      border-radius: 0 0 8px 8px;
+      overflow: hidden;
+    }
+
+    .card-header {
+      padding: 28px 32px 24px;
+      border-bottom: 1px solid #f4f5f7;
+    }
+
+    .brand-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .brand-dot {
+      width: 28px;
+      height: 28px;
+      background: #0052cc;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      color: #fff;
+      font-weight: 700;
+    }
+
+    .brand-name {
+      font-size: 13px;
+      font-weight: 600;
+      color: #0052cc;
+      letter-spacing: 0.3px;
+    }
+
+    .ticket-title {
+      font-size: 20px;
+      font-weight: 600;
+      color: #172b4d;
+      margin-bottom: 6px;
+      line-height: 1.3;
+    }
+
+    .ticket-meta { font-size: 12px; color: #6b778c; }
+    .ticket-meta span { color: #0052cc; font-weight: 500; }
+
+    .status-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 14px;
+    }
+
+    .pill {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.4px;
+      text-transform: uppercase;
+      padding: 3px 10px;
+      border-radius: 3px;
+    }
+
+    .pill-open        { background: #e3fcef; color: #006644; }
+    .pill-in_progress { background: #fff7d6; color: #974f0c; }
+    .pill-resolved    { background: #deebff; color: #0747a6; }
+    .pill-closed      { background: #f4f5f7; color: #5e6c84; }
+
+    .category-pill {
+      background: #f4f5f7;
+      color: #5e6c84;
+      font-size: 11px;
+      font-weight: 500;
+      padding: 3px 10px;
+      border-radius: 3px;
+      text-transform: capitalize;
+    }
+
+    .divider { height: 1px; background: #f4f5f7; margin: 0 32px; }
+
+    .card-body { padding: 24px 32px; }
+
+    .field { margin-bottom: 20px; }
+
+    .field-label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.6px;
+      text-transform: uppercase;
+      color: #6b778c;
+      margin-bottom: 6px;
+    }
+
+    .message-box {
+      background: #f8f9fa;
+      border-left: 3px solid #0052cc;
+      border-radius: 0 4px 4px 0;
+      padding: 14px 16px;
+      font-size: 14px;
+      color: #172b4d;
+      line-height: 1.7;
+    }
+
+    .info-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      border: 1px solid #dfe1e6;
+      border-radius: 6px;
+      overflow: hidden;
+      margin-top: 4px;
+    }
+
+    .info-cell {
+      padding: 12px 14px;
+      border-right: 1px solid #dfe1e6;
+      border-bottom: 1px solid #dfe1e6;
+    }
+
+    .info-cell:nth-child(even) { border-right: none; }
+    .info-cell:nth-last-child(1),
+    .info-cell:nth-last-child(2) { border-bottom: none; }
+
+    .info-cell-label {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #97a0af;
+      margin-bottom: 3px;
+    }
+
+    .info-cell-value {
+      font-size: 13px;
+      font-weight: 500;
+      color: #172b4d;
+    }
+
+    .cta-wrap { padding: 0 32px 28px; text-align: center; }
+
+    .footer {
+      margin-top: 16px;
+      text-align: center;
+      font-size: 11px;
+      color: #97a0af;
+      line-height: 1.7;
+    }
+
+    .footer a { color: #0052cc; text-decoration: none; }
+
+    @media (max-width: 480px) {
+      .card-header, .card-body, .cta-wrap { padding-left: 20px; padding-right: 20px; }
+      .divider { margin: 0 20px; }
+      .ticket-title { font-size: 17px; }
+    }
+  </style>
+</head>
+<body>
+<div class="email">
+
+  <div class="topbar"></div>
+
+  <div class="card">
+
+    <div class="card-header">
+      <div class="brand-row">
+        <div class="brand-dot">M</div>
+        <div class="brand-name">Maintenance Support</div>
+      </div>
+      <div class="ticket-title"><%= subject %></div>
+      <div class="ticket-meta">Ticket <span>#TKT-<%= id %></span> &nbsp;·&nbsp; <%= new Date().toDateString() %></div>
+      <div class="status-row">
+        <span class="pill pill-<%= status %>"><%= status.replace('_', ' ') %></span>
+        <span class="category-pill"><%= category.replace(/_/g, ' ') %></span>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="card-body">
+
+      <div class="field">
+        <div class="field-label">Message</div>
+        <div class="message-box"><%= message %></div>
+      </div>
+
+      <div class="field">
+        <div class="field-label">Ticket details</div>
+        <div class="info-grid">
+          <div class="info-cell">
+            <div class="info-cell-label">Submitted by</div>
+            <div class="info-cell-value"><%= userName %></div>
+          </div>
+          <div class="info-cell">
+            <div class="info-cell-label">Email</div>
+            <div class="info-cell-value"><%= userEmail %></div>
+          </div>
+          <div class="info-cell">
+            <div class="info-cell-label">Category</div>
+            <div class="info-cell-value"><%= category.replace(/_/g, ' ') %></div>
+          </div>
+          <div class="info-cell">
+            <div class="info-cell-label">Submitted at</div>
+            <div class="info-cell-value"><%= new Date().toLocaleDateString('en-GB') %></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="cta-wrap">
+      <p style="font-size:12px;color:#6b778c;line-height:1.6;">
+        This ticket has been logged and a member of the team will follow up shortly.<br/>
+        For urgent matters contact <a href="mailto:support@maintenance.com" style="color:#0052cc;">support@maintenance.com</a>
+      </p>
+    </div>
+
+  </div>
+
+  <div class="footer">
+    &copy; <%= new Date().getFullYear() %> Maintenance System &nbsp;&middot;&nbsp;
+    <a href="mailto:support@maintenance.com">Unsubscribe</a>
+  </div>
+
+</div>
+</body>
+</html>

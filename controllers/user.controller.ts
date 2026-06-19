@@ -8,8 +8,7 @@ import sendMail from "../utils/sendMail.js";
 import { odooRequest } from "../odoo/odoo.client.js";
 import { accessTokenOptions, refreshTokenOptions, sendToken } from "../utils/jwt.js";
 import { getAllUsersService, getUserById, updateUserRoleService } from "../services/user.service.js";
-import cloudinary from "../utils/uploadImages.js";
-
+import cloudinary from "cloudinary"
 
 
 
@@ -229,8 +228,9 @@ export const refreshTokenMiddleware = CatchAsyncError(
     try {
       const refresh_token = req.cookies.refresh_token as string;
 
+      // ← If no refresh cookie (mobile client), just continue
       if (!refresh_token) {
-        return next(new ErrorHandler("Please login to access this resource", 401));
+        return next(); // ← was: return next(new ErrorHandler(..., 401))
       }
 
       const decoded = jwt.verify(
@@ -256,11 +256,12 @@ export const refreshTokenMiddleware = CatchAsyncError(
       res.cookie("ACCESS_TOKEN_SECRET", accessToken, accessTokenOptions);
       res.cookie("refresh_token", refreshToken, refreshTokenOptions);
 
-      req.user = user; // ✅ attach user for downstream
-      next(); // ✅ always continue
+      req.user = user;
+      next();
 
     } catch (error: any) {
-      return next(new ErrorHandler(error.message, 401));
+      // Token invalid/expired cookie — just continue to isAuthenticated
+      return next();
     }
   }
 );

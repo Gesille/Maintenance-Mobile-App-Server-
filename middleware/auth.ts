@@ -10,7 +10,7 @@ import { updateAccessToken } from "../controllers/user.controller.js";
 export const isAuthenticated = CatchAsyncError(
   async (req: Request, res: Response, next: NextFunction) => {
     
-    // ← يقرأ من header أو cookie
+   
     const authHeader = req.headers.authorization;
   
     const ACCESS_TOKEN_SECRET = authHeader?.startsWith('Bearer ')

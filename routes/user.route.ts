@@ -10,7 +10,7 @@ userRouter.post('/activation',activateUser);
 
 userRouter.post('/login',loginUser);
 
-userRouter.get('/logout',isAuthenticated,logoutUser);
+userRouter.post('/logout',isAuthenticated,logoutUser);
 
 userRouter.get('/refresh-token',refreshTokenMiddleware,updateAccessToken);
 
@@ -28,6 +28,6 @@ userRouter.get('/get-users',refreshTokenMiddleware,isAuthenticated,authorizeRole
 
 userRouter.put('/update-user',isAuthenticated,authorizeRoles("manager"),updateUserRole);
 
-userRouter.delete('/delete-user/:id',refreshTokenMiddleware,isAuthenticated,authorizeRoles("admin"),deleteUser);
+userRouter.delete('/delete-user/:id',refreshTokenMiddleware,isAuthenticated,authorizeRoles("manager"),deleteUser);
 
 export default userRouter;

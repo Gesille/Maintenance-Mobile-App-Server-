@@ -1,0 +1,43 @@
+export const EQUIPMENT_FIELDS = [
+  "id",
+  "name",
+  "category_id",
+  "maintenance_team_id",
+  "technician_user_id",
+  "owner_user_id",
+  "assign_date",
+  "scrap_date",
+  "x_location",
+  "x_restaurant",
+  // "x_asset_code",
+  "partner_ref",
+  "partner_id",
+  "model",
+  "serial_no",
+  "effective_date",
+  "cost",
+  "warranty_date",
+  "note",
+  "active",
+] as const;
+
+export const EQUIPMENT_QR_FIELDS = ["id", "name", "x_asset_code"] as const;
+
+export const PRIORITY_MAP: Record<string, string> = {
+  Normal: "0",
+  High: "1",
+  "Very Urgent": "3",
+  Low: "0",
+  Critical: "3",
+};
+
+export const QR_GRID = {
+  itemsPerRow: 3,
+  itemsPerPage: 9,
+  cardWidth: 160,
+  cardHeight: 210,
+  marginX: 40,
+  marginY: 40,
+  gapX: 20,
+  gapY: 20,
+} as const;
