@@ -10,23 +10,11 @@ import { MAINTENANCE_REQUEST_FIELDS } from "../@types/Maintenance.constants.js";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-/**
- * RepairState — the raw Odoo stage value stored on maintenance.request.
- * The frontend adapter (WorkOrdersPage) maps these to WOStatus:
- *
- *   "new"          → "open"
- *   "under_repair" → "in_progress"
- *   "done"         → "done"
- *   "cancel"       → "on_hold"
- */
 export type RepairState = "new" | "under_repair" | "done" | "cancel";
 
 const VALID_STATES: RepairState[] = ["new", "under_repair", "done", "cancel"];
 
 // ─── Get all maintenance requests ─────────────────────────────────────────────
-// GET /maintenance
-// Returns: { requests[], stages[], total }
-// Used by: WorkOrdersPage → useGetAllMaintenanceRequestsQuery
 export const getAllMaintenanceRequests = async (
   _req: Request,
   res: Response,
@@ -41,8 +29,7 @@ export const getAllMaintenanceRequests = async (
 };
 
 // ─── Get single maintenance request ───────────────────────────────────────────
-// GET /maintenance/:id
-// Used by employees to track the status of a specific request
+
 export const getMaintenanceRequestDetail = async (
   req: Request,
   res: Response,

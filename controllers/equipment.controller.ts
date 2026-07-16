@@ -4,10 +4,9 @@ import { mapEquipment, mapEquipmentList } from "../mapper/equipment.mapper.js";
 import ErrorHandler from "../utils/ErrorHandler.js";
 import PDFDocument from "pdfkit";
 import QRCode from "qrcode";
-import path from "path";
-import { fileURLToPath } from "url";
+
 import { uploadMedia } from "../utils/uploadImages.js";
-import { CreateRequestInput, fetchAllEquipment } from "../services/equipment.service.js";
+
 import sendMail from "../utils/sendMail.js";
 
 const EQUIPMENT_FIELDS = [
