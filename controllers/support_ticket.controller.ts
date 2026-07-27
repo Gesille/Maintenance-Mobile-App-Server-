@@ -1,38 +1,27 @@
 import { Request, Response, NextFunction } from "express";
 import { CatchAsyncError } from "../middleware/catchAsyncError.js";
 import ErrorHandler from "../utils/ErrorHandler.js";
-import { odooRequest } from "../odoo/odoo.client.js";
 import sendMail from "../utils/sendMail.js";
+import supportTicketModel, { ISupportTicket, TicketCategory, TicketStatus } from "../models/supportTicket.model.js";
 
-
-// Odoo model name for support tickets
-const TICKET_MODEL = "x_support.ticket";
-
-export type TicketStatus = "open" | "in_progress" | "resolved" | "closed";
-export type TicketCategory =
-  | "technical_issue"
-  | "request_not_updating"
-  | "account_login"
-  | "equipment"
-  | "other";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-/** Map an Odoo record to a clean ticket object for API responses */
-function formatTicket(record: any) {
+/** Map a Mongo ticket doc to a clean object for API responses */
+function formatTicket(record: ISupportTicket) {
   return {
-    id:         record.id,
-    userId:     record.x_user_id,
-    userName:   record.x_user_name,
-    userEmail:  record.x_user_email,
-    category:   record.x_category,
-    subject:    record.x_name,
-    message:    record.x_message,
-    status:     record.x_status,
-    adminReply: record.x_admin_reply   || null,
-    repliedAt:  record.x_replied_at    || null,
-    createdAt:  record.create_date,
-    updatedAt:  record.write_date,
+    id:         record._id,
+    userId:     record.userId,
+    userName:   record.userName,
+    userEmail:  record.userEmail,
+    category:   record.category,
+    subject:    record.subject,
+    message:    record.message,
+    status:     record.status,
+    adminReply: record.adminReply || null,
+    repliedAt:  record.repliedAt  || null,
+    createdAt:  record.createdAt,
+    updatedAt:  record.updatedAt,
   };
 }
 
@@ -49,49 +38,36 @@ export const createTicket = CatchAsyncError(
       const user = req.user;
       if (!user) return next(new ErrorHandler("Not authenticated", 401));
 
-     const newId = await odooRequest(TICKET_MODEL, "create", [
-  {
-    x_user_id:    String(user._id),
-    x_user_name:  user.name,
-    x_user_email: user.email,
-    x_category:   category as TicketCategory,
-    x_name:       subject.trim(),
-    x_message:    message.trim(),
-    x_status:     "open" as TicketStatus,
-  },
-]);
-
-      // Fetch the created record to return it
-      const records = await odooRequest(TICKET_MODEL, "read", [[newId]], {
-        fields: [
-          "id", "x_name",
-          "x_user_id", "x_user_name", "x_user_email",
-          "x_category", "x_message", "x_status",
-          "x_admin_reply", "x_replied_at",
-          "create_date", "write_date",
-        ],
+      const ticket = await supportTicketModel.create({
+        userId:    user._id,
+        userName:  user.name,
+        userEmail: user.email,
+        category:  category as TicketCategory,
+        subject:   subject.trim(),
+        message:   message.trim(),
+        status:    "open" as TicketStatus,
       });
 
       res.status(201).json({
         success: true,
         message: "Ticket submitted successfully",
-        data: formatTicket(records[0]),
+        data: formatTicket(ticket),
       });
-  
-sendMail({
-  email: process.env.MAINTENANCE_EMAIL as string, 
-  subject: `New Support Ticket [TKT-${newId}] — ${subject}`,
-  template: "support-ticket.ejs",
-  data: {
-    id:        newId,
-    userName:  user.name,
-    userEmail: user.email,
-    category,
-    subject,
-    message,
-    status:    "open",
-  },
-}).catch(console.error); 
+
+      sendMail({
+        email: process.env.MAINTENANCE_EMAIL as string,
+        subject: `New Support Ticket [TKT-${ticket._id}] — ${subject}`,
+        template: "support-ticket.ejs",
+        data: {
+          id:        ticket._id,
+          userName:  user.name,
+          userEmail: user.email,
+          category,
+          subject,
+          message,
+          status:    "open",
+        },
+      }).catch(console.error);
     } catch (error: any) {
       return next(new ErrorHandler(error.message || "Something went wrong", 400));
     }
@@ -105,21 +81,9 @@ export const getMyTickets = CatchAsyncError(
       const userId = req.user?._id;
       if (!userId) return next(new ErrorHandler("Not authenticated", 401));
 
-      const records = await odooRequest(
-        TICKET_MODEL,
-        "search_read",
-        [[["x_user_id", "=", String(userId)]]],
-        {
-          fields: [
-            "id", "x_name",
-            "x_user_id", "x_user_name", "x_user_email",
-            "x_category", "x_message", "x_status",
-            "x_admin_reply", "x_replied_at",
-            "create_date", "write_date",
-          ],
-          order: "create_date desc",
-        },
-      );
+      const records = await supportTicketModel.find({ userId })
+        .sort({ createdAt: -1 })
+        .lean<ISupportTicket[]>();
 
       res.status(200).json({
         success: true,
@@ -136,27 +100,16 @@ export const getMyTickets = CatchAsyncError(
 export const getTicketById = CatchAsyncError(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const id = Number(req.params.id);
-      if (isNaN(id)) return next(new ErrorHandler("Invalid ticket ID", 400));
+      const { id } = req.params;
 
-      const records = await odooRequest(TICKET_MODEL, "read", [[id]], {
-        fields: [
-          "id", "x_name",
-          "x_user_id", "x_user_name", "x_user_email",
-          "x_category", "x_message", "x_status",
-          "x_admin_reply", "x_replied_at",
-          "create_date", "write_date",
-        ],
-      });
+      const ticket = await supportTicketModel.findById(id).lean<ISupportTicket>();
 
-      if (!records || records.length === 0) {
+      if (!ticket) {
         return next(new ErrorHandler("Ticket not found", 404));
       }
 
-      const ticket = records[0];
-
       // Users can only see their own tickets
-      if (ticket.x_user_id !== String(req.user?._id)) {
+      if (String(ticket.userId) !== String(req.user?._id)) {
         return next(new ErrorHandler("Unauthorized", 403));
       }
 
@@ -177,24 +130,11 @@ export const getAllTickets = CatchAsyncError(
 
       const { status } = req.query;
 
-      // Build Odoo domain filter
-      const domain: any[] = status ? [["x_status", "=", status]] : [];
+      const filter: Record<string, any> = status ? { status } : {};
 
-      const records = await odooRequest(
-        TICKET_MODEL,
-        "search_read",
-        [domain],
-        {
-          fields: [
-            "id", "x_name",
-            "x_user_id", "x_user_name", "x_user_email",
-            "x_category", "x_message", "x_status",
-            "x_admin_reply", "x_replied_at",
-            "create_date", "write_date",
-          ],
-          order: "create_date desc",
-        },
-      );
+      const records = await supportTicketModel.find(filter)
+        .sort({ createdAt: -1 })
+        .lean<ISupportTicket[]>();
 
       res.status(200).json({
         success: true,
@@ -215,60 +155,33 @@ export const updateTicket = CatchAsyncError(
         return next(new ErrorHandler("Not authorized", 403));
       }
 
-      const id = Number(req.params.id);
-      if (isNaN(id)) return next(new ErrorHandler("Invalid ticket ID", 400));
+      const { id } = req.params;
 
       const { status, adminReply } = req.body as {
         status?: TicketStatus;
         adminReply?: string;
       };
 
-      // Check ticket exists
-      const existing = await odooRequest(TICKET_MODEL, "read", [[id]], {
-        fields: ["id"],
-      });
-      if (!existing || existing.length === 0) {
+      const existing = await supportTicketModel.findById(id);
+      if (!existing) {
         return next(new ErrorHandler("Ticket not found", 404));
       }
 
-      // Build update payload
-      const values: Record<string, any> = {};
-      if (status)     values.x_status = status;
+      if (status) existing.status = status;
       if (adminReply) {
-        values.x_admin_reply = adminReply;
-        values.x_replied_at  = new Date().toISOString();
+        existing.adminReply = adminReply;
+        existing.repliedAt = new Date();
       }
 
-     
-await odooRequest(TICKET_MODEL, "write", [[id], values]);
-
-      // Return updated record
-      const records = await odooRequest(TICKET_MODEL, "read", [[id]], {
-        fields: [
-          "id", "x_name",
-          "x_user_id", "x_user_name", "x_user_email",
-          "x_category", "x_message", "x_status",
-          "x_admin_reply", "x_replied_at",
-          "create_date", "write_date",
-        ],
-      });
+      await existing.save();
 
       res.status(200).json({
         success: true,
         message: "Ticket updated",
-        data: formatTicket(records[0]),
+        data: formatTicket(existing),
       });
     } catch (error: any) {
       return next(new ErrorHandler(error.message || "Something went wrong", 400));
     }
   },
 );
-
-
-export const listModels = CatchAsyncError(async (req: Request, res: Response, next: NextFunction) => {
-  const models = await odooRequest("ir.model", "search_read", [[]], {
-    fields: ["model", "name"],
-  });
-  // Return ALL models so we can see the exact name
-  res.json({ models });
-});

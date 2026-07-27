@@ -9,7 +9,8 @@
     "dev": "npx tsx watch server.ts",
     "start": "node build/server.js",
     "heroku-postbuild": "NPM_CONFIG_PRODUCTION=false",
-    "build": "tsc && shx cp -r mails build/mails"
+    "build": "tsc && shx cp -r mails build/mails",
+     "migrate:equipment": "npx tsx script/migrateEquipmentFromOdoo.ts"
   },
   "keywords": [],
   "author": "",

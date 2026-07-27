@@ -5,7 +5,7 @@ import { CatchAsyncError } from "../middleware/catchAsyncError.js";
 import ErrorHandler from "../utils/ErrorHandler.js";
 import userModel, { IUser } from "../models/user.model.js";
 import sendMail from "../utils/sendMail.js";
-import { odooRequest } from "../odoo/odoo.client.js";
+
 import { accessTokenOptions, refreshTokenOptions, sendToken } from "../utils/jwt.js";
 import { getAllUsersService, getUserById, updateUserRoleService } from "../services/user.service.js";
 import cloudinary from "cloudinary"
@@ -125,39 +125,16 @@ export const activateUser = CatchAsyncError(
         return next(new ErrorHandler("Email is already exist", 400));
       }
 
-      //  create user first
-      const user = await userModel.create({
+      // create user
+      await userModel.create({
         name,
         email,
         password,
       });
 
-      let partnerId: number;
-
-      try {
-        //create partner in Odoo
-        partnerId = await odooRequest("res.partner", "create", [
-          {
-            name: user.name,
-            email: user.email,
-          },
-        ]);
-      } catch (err) {
-        console.error("❌ Odoo error:", err);
-
-        // 🔥 IMPORTANT: rollback user
-        await user.deleteOne();
-
-        return next(new ErrorHandler("Failed to sync with Odoo", 500));
-      }
-
-      // save partner id
-      user.odooPartnerId = Number(partnerId);
-      await user.save();
-
       res.status(201).json({
         success: true,
-        message: "User activated and synced with Odoo",
+        message: "User activated successfully",
       });
     } catch (error: any) {
       console.error("Activation Error:", error);

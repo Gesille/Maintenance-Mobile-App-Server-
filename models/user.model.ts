@@ -9,7 +9,7 @@ const emailRegexPattern: RegExp = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export const ROLES = {
   USER: "user",
   MANAGER: "manager",
-  TECHNICIAN:"technician",
+  TECHNICIAN: "technician",
 } as const;
 
 export interface IUser extends Document {
@@ -34,12 +34,11 @@ export interface IUser extends Document {
     _id: number;
     orderId: string;
   }>;
-  odooPartnerId: number;
   comparePassword: (password: string) => Promise<boolean>;
   SignAccessToken: () => string;
   SignRefreshToken: () => string;
   hasRole: (roles: string[]) => boolean;
-  createdAt:Date
+  createdAt: Date;
 }
 
 const userSchema: Schema<IUser> = new mongoose.Schema(
@@ -88,10 +87,6 @@ const userSchema: Schema<IUser> = new mongoose.Schema(
       zip: String,
     },
     orders: [{ orderId: String }],
-    odooPartnerId: {
-      type: Number,
-    },
-   
   },
   { timestamps: true },
 );

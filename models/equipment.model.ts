@@ -1,3 +1,29 @@
+import mongoose, { Document, Model, Schema } from "mongoose";
+
+// ─── Auto-increment counter (shared pattern with MaintenanceRequestModel) ───
+
+interface ICounter extends Omit<Document, "_id"> {
+  _id: string;
+  seq: number;
+}
+
+const counterSchema = new Schema<ICounter>({
+  _id: { type: String, required: true },
+  seq: { type: Number, default: 0 },
+});
+
+const CounterModel: Model<ICounter> =
+  mongoose.models.Counter || mongoose.model<ICounter>("Counter", counterSchema);
+
+async function getNextSequence(name: string): Promise<number> {
+  const counter = await CounterModel.findByIdAndUpdate(
+    name,
+    { $inc: { seq: 1 } },
+    { new: true, upsert: true },
+  );
+  return counter.seq;
+}
+
 export interface IEquipment {
   id: number;
   name: string;
@@ -19,28 +45,50 @@ export interface IEquipment {
   cost: number;
   warrantyExpirationDate: string | null;
   description: string | null;
+  active?: boolean;
 }
 
-export interface IOdooEquipmentRaw {
-  id: number;
-  name: string;
-  category_id: [number, string] | false;
-  maintenance_team_id: [number, string] | false;
-  technician_user_id: [number, string] | false;
-  owner_user_id: [number, string] | false;
-  assign_date: string | false;
-  scrap_date: string | false;
-  "x_location": [number, string] | false;  
-  x_restaurant: string | false;
-  x_asset_code: string | false;           
-  partner_ref: string | false;
-  partner_id: [number, string] | false;
-  vendor_ref: string | false;
-  model: string | false;
-  serial_no: string | false;
-  effective_date: string | false;
-  cost: number;
-  warranty_date: string | false;
-  note: string | false;
-  active: boolean;
-}
+export interface IEquipmentDocument extends Omit<Document, "model">, IEquipment {}
+
+const equipmentSchema = new Schema<IEquipmentDocument>(
+  {
+    id: { type: Number, unique: true, index: true },
+    name: { type: String, required: true },
+    category: { type: String, default: null },
+    maintenanceTeam: { type: String, default: null },
+    technician: { type: String, default: null },
+    owner: { type: String, default: null },
+    assignedDate: { type: String, default: null },
+    scrapDate: { type: String, default: null },
+    usedInLocation: { type: String, default: null },
+    restaurant: { type: String, default: null },
+    assetCode: { type: String, default: null },
+    reference: { type: String, default: null },
+    vendor: { type: String, default: null },
+    vendorReference: { type: String, default: null },
+    model: { type: String, default: null },
+    serialNumber: { type: String, default: null },
+    effectiveDate: { type: String, default: null },
+    cost: { type: Number, default: 0 },
+    warrantyExpirationDate: { type: String, default: null },
+    description: { type: String, default: null },
+    active: { type: Boolean, default: true },
+  },
+  { timestamps: true },
+);
+
+equipmentSchema.pre("save", async function (next) {
+  try {
+    if (this.isNew && !this.id) {
+      this.id = await getNextSequence("equipment");
+    }
+  
+  } catch (err) {
+  
+  }
+});
+
+const EquipmentModel: Model<IEquipmentDocument> =
+  mongoose.models.Equipment || mongoose.model<IEquipmentDocument>("Equipment", equipmentSchema);
+
+export default EquipmentModel;

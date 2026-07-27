@@ -5,7 +5,7 @@ import {
   getTicketById,
   getAllTickets,
   updateTicket,
-  listModels,
+ 
 } from "../controllers/support_ticket.controller.js";
 import { isAuthenticated } from "../middleware/auth.js";
 import { refreshTokenMiddleware } from "../controllers/user.controller.js";
@@ -44,10 +44,6 @@ supportTicketRouter.put(
  
   isAuthenticated,
   updateTicket,
-);
-supportTicketRouter.get(
-  "/list-models",
-  listModels,
 );
 
 export default supportTicketRouter;
