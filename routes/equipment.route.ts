@@ -1,5 +1,6 @@
 import { Router } from "express";
 import {
+  createEquipment,
     createMaintenanceRequest,
   getAllEquipment,
  
@@ -34,7 +35,7 @@ equipmentRouter.get(
   isAuthenticated,
   getAllMaintenanceRequests
 )
-
+equipmentRouter.post("/create-equipment", refreshTokenMiddleware,isAuthenticated,createEquipment);
 
 
 export default equipmentRouter;
