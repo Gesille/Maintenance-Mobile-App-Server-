@@ -6,7 +6,9 @@ import MaintenanceRequestModel from "../models/Maintenancerequest.model.js";
 import { uploadMedia } from "../utils/uploadImages.js";
 import { PRIORITY_MAP, QR_GRID } from "../@types/equipment.constants.js";
 import sendMail from "../utils/sendMail.js";
-
+import fs from "fs/promises";
+import os from "os";
+import path from "path";
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface CreateRequestInput {
@@ -322,6 +324,17 @@ export async function createEquipmentService(input: CreateEquipmentInput) {
     description: input.description ?? null,
   });
 
+  try {
+    const { url, public_id } = await generateAndStoreQR(equipment.id);
+    equipment.qrCodeUrl = url;
+    equipment.qrPublicId = public_id;
+    equipment.qrGenerated = true;
+    await equipment.save();
+  } catch (err: any) {
+    // don't block equipment creation just because the QR upload hiccuped
+    console.error(`[QR] Failed to generate QR for equipment #${equipment.id}:`, err.message);
+  }
+
   return equipment.toObject();
 }
 
@@ -341,3 +354,54 @@ export const deleteEquipmentService = async (id: number) => {
   const deleted = await EquipmentModel.findOneAndDelete({ id });
   return deleted; // null if not found
 };
+
+
+// ─── QR generation + storage ─────────────────────────────────────────────────
+
+async function generateAndStoreQR(id: number): Promise<{ url: string; public_id: string | null }> {
+  const dataUrl = await QRCode.toDataURL(String(id), {
+    errorCorrectionLevel: "H",
+    width: 400,
+  });
+  const base64 = dataUrl.replace(/^data:image\/png;base64,/, "");
+  const tempPath = path.join(os.tmpdir(), `qr-${id}-${Date.now()}.png`);
+
+  await fs.writeFile(tempPath, base64, "base64");
+  try {
+    const result = await uploadMedia(tempPath, "image");
+    return { url: result.url, public_id: result.public_id };
+  } finally {
+    await fs.unlink(tempPath).catch(() => {});
+  }
+}
+
+export async function generateEquipmentQRService(id: number) {
+  const eq = await EquipmentModel.findOne({ id });
+  if (!eq) return null;
+
+  const { url, public_id } = await generateAndStoreQR(eq.id);
+  eq.qrCodeUrl = url;
+  eq.qrPublicId = public_id;
+  eq.qrGenerated = true;
+  await eq.save();
+
+  return eq.toObject();
+}
+
+export async function generateMissingQRsService() {
+  const items = await EquipmentModel.find({
+    active: true,
+    $or: [{ qrGenerated: { $ne: true } }, { qrCodeUrl: null }],
+  });
+
+  const results = [];
+  for (const eq of items) {
+    const { url, public_id } = await generateAndStoreQR(eq.id);
+    eq.qrCodeUrl = url;
+    eq.qrPublicId = public_id;
+    eq.qrGenerated = true;
+    await eq.save();
+    results.push(eq.toObject());
+  }
+  return results;
+}

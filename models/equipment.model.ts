@@ -45,6 +45,10 @@ export interface IEquipment {
   cost: number;
   warrantyExpirationDate: string | null;
   description: string | null;
+ 
+  qrCodeUrl: string | null;
+  qrPublicId: string | null;
+  qrGenerated: boolean;
   active?: boolean;
 }
 
@@ -73,6 +77,11 @@ const equipmentSchema = new Schema<IEquipmentDocument>(
     warrantyExpirationDate: { type: String, default: null },
     description: { type: String, default: null },
     active: { type: Boolean, default: true },
+     qrCodeUrl: { type: String, default: null },
+    qrPublicId: { type: String, default: null },
+    qrGenerated: { type: Boolean, default: false, index: true },
+ 
+  
   },
   { timestamps: true },
 );

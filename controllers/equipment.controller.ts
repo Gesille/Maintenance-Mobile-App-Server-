@@ -13,6 +13,8 @@ import {
   createEquipmentService,
   deleteEquipmentService,
   updateEquipmentService,
+  generateEquipmentQRService,
+  generateMissingQRsService,
 } from "../services/equipment.service.js";
 
 // ─── Get all equipment ─────────────────────────────────────────────────────────
@@ -348,6 +350,43 @@ export const deleteEquipment = async (
       return res.status(404).json({ success: false, message: "Equipment not found" });
 
     res.status(200).json({ success: true, message: "Equipment deleted successfully" });
+  } catch (error: any) {
+    return next(new ErrorHandler(error.message || "Something went wrong", 400));
+  }
+};
+
+export const generateEquipmentQR = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const id = parseInt(req.params.id as string);
+    if (isNaN(id))
+      return res.status(400).json({ success: false, message: "Invalid ID" });
+
+    const updated = await generateEquipmentQRService(id);
+    if (!updated)
+      return res.status(404).json({ success: false, message: "Equipment not found" });
+
+    res.status(200).json({ success: true, message: "QR code generated", data: updated });
+  } catch (error: any) {
+    return next(new ErrorHandler(error.message || "Something went wrong", 400));
+  }
+};
+
+export const generateMissingQRs = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const results = await generateMissingQRsService();
+    res.status(200).json({
+      success: true,
+      message: `Generated ${results.length} QR code(s)`,
+      data: results,
+    });
   } catch (error: any) {
     return next(new ErrorHandler(error.message || "Something went wrong", 400));
   }

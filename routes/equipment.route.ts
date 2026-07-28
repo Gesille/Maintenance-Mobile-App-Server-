@@ -1,13 +1,12 @@
 import { Router } from "express";
 import {
   createEquipment,
-    createMaintenanceRequest,
+  createMaintenanceRequest,
   deleteEquipment,
+  generateEquipmentQR,
+  generateMissingQRs,
   getAllEquipment,
- 
   getEquipmentById,
-
- 
   printAllQRPdf,
   printSingleQRPdf,
   scanEquipmentQR,
@@ -19,16 +18,18 @@ import { getAllMaintenanceRequests } from "../controllers/maintenance.controller
 import { uploadMaintenanceMedia } from "../middleware/upload.js";
 const equipmentRouter = Router();
 
-equipmentRouter.get("/get-all-equipment",refreshTokenMiddleware, isAuthenticated, getAllEquipment);
+equipmentRouter.get("/get-all-equipment", refreshTokenMiddleware, isAuthenticated, getAllEquipment);
 equipmentRouter.get("/get-equipment/:id", refreshTokenMiddleware, isAuthenticated, getEquipmentById);
 equipmentRouter.get("/get-all-qr", refreshTokenMiddleware, isAuthenticated, printAllQRPdf);
 equipmentRouter.get("/get-qr/:id", refreshTokenMiddleware, isAuthenticated, printSingleQRPdf);
-equipmentRouter.get("/scan/:id",refreshTokenMiddleware, isAuthenticated, scanEquipmentQR);
+equipmentRouter.post("/generate-qr/:id", refreshTokenMiddleware, isAuthenticated, generateEquipmentQR);
+equipmentRouter.post("/generate-missing-qr", refreshTokenMiddleware, isAuthenticated, generateMissingQRs);
+equipmentRouter.get("/scan/:id", refreshTokenMiddleware, isAuthenticated, scanEquipmentQR);
 equipmentRouter.post(
   "/create-request",
   refreshTokenMiddleware,
   isAuthenticated,
-   uploadMaintenanceMedia.array('files', 10),
+  uploadMaintenanceMedia.array('files', 10),
   createMaintenanceRequest,
 );
 equipmentRouter.get(
@@ -37,8 +38,8 @@ equipmentRouter.get(
   isAuthenticated,
   getAllMaintenanceRequests
 )
-equipmentRouter.post("/create-equipment", refreshTokenMiddleware,isAuthenticated,createEquipment);
-equipmentRouter.put("/update-equipment/:id", refreshTokenMiddleware,isAuthenticated,updateEquipment);
-equipmentRouter.delete("/delete-equipment/:id", refreshTokenMiddleware,isAuthenticated,deleteEquipment);
+equipmentRouter.post("/create-equipment", refreshTokenMiddleware, isAuthenticated, createEquipment);
+equipmentRouter.put("/update-equipment/:id", refreshTokenMiddleware, isAuthenticated, updateEquipment);
+equipmentRouter.delete("/delete-equipment/:id", refreshTokenMiddleware, isAuthenticated, deleteEquipment);
 
 export default equipmentRouter;
