@@ -77,14 +77,13 @@ const equipmentSchema = new Schema<IEquipmentDocument>(
   { timestamps: true },
 );
 
-equipmentSchema.pre("save", async function (next) {
+equipmentSchema.pre("save", async function () {
   try {
     if (this.isNew && !this.id) {
       this.id = await getNextSequence("equipment");
     }
-  
   } catch (err) {
-  
+    throw err;
   }
 });
 

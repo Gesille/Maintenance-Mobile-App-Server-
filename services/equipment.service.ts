@@ -46,7 +46,27 @@ export interface UploadedMedia {
   public_id: string | null;
   type: "image" | "video";
 }
-
+export interface UpdateEquipmentInput {
+  name?: string;
+  category?: string | null;
+  maintenanceTeam?: string | null;
+  technician?: string | null;
+  owner?: string | null;
+  assignedDate?: string | null;
+  scrapDate?: string | null;
+  usedInLocation?: string | null;
+  restaurant?: string | null;
+  assetCode?: string | null;
+  reference?: string | null;
+  vendor?: string | null;
+  vendorReference?: string | null;
+  model?: string | null;
+  serialNumber?: string | null;
+  effectiveDate?: string | null;
+  cost?: number;
+  warrantyExpirationDate?: string | null;
+  description?: string | null;
+}
 // ─── Equipment queries ────────────────────────────────────────────────────────
 
 export async function fetchAllEquipment() {
@@ -304,3 +324,20 @@ export async function createEquipmentService(input: CreateEquipmentInput) {
 
   return equipment.toObject();
 }
+
+export const updateEquipmentService = async (
+  id: number,
+  data: UpdateEquipmentInput,
+) => {
+  const updated = await EquipmentModel.findOneAndUpdate(
+    { id },
+    { $set: data },
+    { new: true, runValidators: true },
+  );
+  return updated; // null if not found
+};
+
+export const deleteEquipmentService = async (id: number) => {
+  const deleted = await EquipmentModel.findOneAndDelete({ id });
+  return deleted; // null if not found
+};

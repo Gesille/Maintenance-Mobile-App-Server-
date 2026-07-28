@@ -2,6 +2,7 @@ import { Router } from "express";
 import {
   createEquipment,
     createMaintenanceRequest,
+  deleteEquipment,
   getAllEquipment,
  
   getEquipmentById,
@@ -10,6 +11,7 @@ import {
   printAllQRPdf,
   printSingleQRPdf,
   scanEquipmentQR,
+  updateEquipment,
 } from "../controllers/equipment.controller.js";
 import { isAuthenticated } from "../middleware/auth.js";
 import { refreshTokenMiddleware } from "../controllers/user.controller.js";
@@ -36,6 +38,7 @@ equipmentRouter.get(
   getAllMaintenanceRequests
 )
 equipmentRouter.post("/create-equipment", refreshTokenMiddleware,isAuthenticated,createEquipment);
-
+equipmentRouter.put("/update-equipment/:id", refreshTokenMiddleware,isAuthenticated,updateEquipment);
+equipmentRouter.delete("/delete-equipment/:id", refreshTokenMiddleware,isAuthenticated,deleteEquipment);
 
 export default equipmentRouter;

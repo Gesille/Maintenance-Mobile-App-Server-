@@ -11,6 +11,8 @@ import {
   buildAllQRPdf,
   buildSingleQRPdf,
   createEquipmentService,
+  deleteEquipmentService,
+  updateEquipmentService,
 } from "../services/equipment.service.js";
 
 // ─── Get all equipment ─────────────────────────────────────────────────────────
@@ -249,6 +251,104 @@ export const createEquipment = async (
         message: "Equipment with this id or assetCode already exists",
       });
     }
+    return next(new ErrorHandler(error.message || "Something went wrong", 400));
+  }
+};
+
+// ─── Update equipment ─────────────────────────────────────────────────────────
+
+export const updateEquipment = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const id = parseInt(req.params.id as string);
+    if (isNaN(id))
+      return res.status(400).json({ success: false, message: "Invalid ID" });
+
+    const {
+      name,
+      category,
+      maintenanceTeam,
+      technician,
+      owner,
+      assignedDate,
+      scrapDate,
+      usedInLocation,
+      restaurant,
+      assetCode,
+      reference,
+      vendor,
+      vendorReference,
+      model,
+      serialNumber,
+      effectiveDate,
+      cost,
+      warrantyExpirationDate,
+      description,
+    } = req.body;
+
+    const updated = await updateEquipmentService(id, {
+      name,
+      category,
+      maintenanceTeam,
+      technician,
+      owner,
+      assignedDate,
+      scrapDate,
+      usedInLocation,
+      restaurant,
+      assetCode,
+      reference,
+      vendor,
+      vendorReference,
+      model,
+      serialNumber,
+      effectiveDate,
+      cost: cost !== undefined ? Number(cost) : undefined,
+      warrantyExpirationDate,
+      description,
+    });
+
+    if (!updated)
+      return res.status(404).json({ success: false, message: "Equipment not found" });
+
+    res.status(200).json({
+      success: true,
+      message: "Equipment updated successfully",
+      data: updated,
+    });
+  } catch (error: any) {
+    if (error.code === 11000) {
+      return res.status(409).json({
+        success: false,
+        message: "Equipment with this assetCode already exists",
+      });
+    }
+    return next(new ErrorHandler(error.message || "Something went wrong", 400));
+  }
+};
+
+// ─── Delete equipment ─────────────────────────────────────────────────────────
+
+export const deleteEquipment = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const id = parseInt(req.params.id as string);
+    if (isNaN(id))
+      return res.status(400).json({ success: false, message: "Invalid ID" });
+
+    const deleted = await deleteEquipmentService(id);
+
+    if (!deleted)
+      return res.status(404).json({ success: false, message: "Equipment not found" });
+
+    res.status(200).json({ success: true, message: "Equipment deleted successfully" });
+  } catch (error: any) {
     return next(new ErrorHandler(error.message || "Something went wrong", 400));
   }
 };
