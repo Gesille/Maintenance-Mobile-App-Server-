@@ -1,179 +1,189 @@
-
-import EquipmentModel, { IEquipmentDocument } from "../models/equipment.model.js";
+import EquipmentModel from "../models/equipment.model.js";
+import MaintenanceRequestModel, {
+  IMaintenanceRequest,
+  MaintenanceStatus,
+} from "../models/Maintenancerequest.model.js";
 import MaintenanceMessageModel from "../models/MaintenanceMessage.model.js";
-import MaintenanceRequestModel, { MaintenanceStatus, IMaintenanceRequest, ITechnicianRef, VALID_STATUSES } from "../models/Maintenancerequest.model.js";
 
-// ─── Stages (static now — status lives directly on the request) ───────────────
+// ─── Frontend-facing shapes (mirrors Maintenanceapi.ts on the frontend) ──────
 
 export interface StageInfo {
-  id: MaintenanceStatus;
+  id: number;
   name: string;
   sequence: number;
+  isfold: boolean;
 }
 
-export const STAGES: StageInfo[] = [
-  { id: "new", name: "New", sequence: 1 },
-  { id: "under_repair", name: "Under Repair", sequence: 2 },
-  { id: "done", name: "Done", sequence: 3 },
-  { id: "cancel", name: "Cancelled", sequence: 4 },
-];
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
-function uniqueIds(values: (number | undefined | null)[]): number[] {
-  return [...new Set(values.filter((v): v is number => v !== undefined && v !== null))];
+export interface MaintenanceRequestDTO {
+  id: number;
+  name: string;
+  description: string | null;
+  priority: string;
+  state: MaintenanceStatus;
+  maintenanceType: string;
+  stage: StageInfo;
+  equipment: {
+    id: number;
+    name: string;
+    location: { id: number; name: string } | string | null;
+    assetCode: string | null;
+    serialNo: string | null;
+    model: string | null;
+  } | null;
+  category: { id: number; name: string } | null;
+  maintenanceTeam: { id: number; name: string } | null;
+  technicians: { id: number; name: string }[];
+  createdBy: { id: number; name: string } | null;
+  createDate: string | null;
+  scheduleDate: string | null;
+  scheduleEnd: string | null;
+  closeDate: string | null;
+  duration: number;
+  isRecurring: boolean;
+  color: number;
 }
 
-async function fetchEquipmentMap(ids: number[]): Promise<Map<number, IEquipmentDocument>> {
-  if (ids.length === 0) return new Map();
-  const raw = await EquipmentModel.find({ id: { $in: ids } }).lean();
-  return new Map(raw.map((eq: any) => [eq.id, eq]));
+export interface MaintenanceMessageDTO {
+  id: number;
+  type: "comment";
+  author: { id: number; name: string } | null;
+  body: string;
+  date: string;
+  isInternal: boolean;
+  parentId: number | null;
 }
 
-function serializeRequest(
-  doc: IMaintenanceRequest,
-  equipmentMap: Map<number, IEquipmentDocument>,
-) {
-  const equipment = equipmentMap.get(doc.equipmentId) ?? null;
+// ─── Stage derivation ─────────────────────────────────────────────────────────
+// There's no separate "stage" collection in Mongo — status IS the stage.
+// This gives the frontend a stable, ordered list to render as kanban columns.
+
+const STAGE_MAP: Record<MaintenanceStatus, StageInfo> = {
+  new: { id: 1, name: "New", sequence: 1, isfold: false },
+  under_repair: { id: 2, name: "Under Repair", sequence: 2, isfold: false },
+  done: { id: 3, name: "Done", sequence: 3, isfold: true },
+  cancel: { id: 4, name: "Cancelled", sequence: 4, isfold: true },
+};
+
+export const ALL_STAGES: StageInfo[] = Object.values(STAGE_MAP);
+
+// ─── Transform: Mongoose doc → frontend DTO ──────────────────────────────────
+
+function computeDuration(scheduleDate: Date | null, closeDate: Date | null): number {
+  if (!scheduleDate || !closeDate) return 0;
+  const hours = (closeDate.getTime() - scheduleDate.getTime()) / (1000 * 60 * 60);
+  return hours > 0 ? Math.round(hours * 10) / 10 : 0;
+}
+
+function transformRequest(
+  r: IMaintenanceRequest,
+  equipmentMap: Map<number, any>,
+): MaintenanceRequestDTO {
+  const eq = equipmentMap.get(r.equipmentId) ?? null;
+
   return {
-    id: doc.id,
-    name: doc.name,
-    equipmentId: doc.equipmentId,
-    equipmentName: equipment?.name ?? null,
-    priority: doc.priority,
-    description: doc.description,
-    reportedBy: doc.reportedBy,
-    reportedByEmail: doc.reportedByEmail,
-    status: doc.status,
-    technicians: doc.technicians,
-    scheduleDate: doc.scheduleDate,
-    closeDate: doc.closeDate,
-    media: doc.media,
-    createdAt: doc.createdAt,
-    updatedAt: doc.updatedAt,
+    id: r.id,
+    name: r.name,
+    description: r.description ?? null,
+    priority: r.priority,
+    state: r.status,
+    maintenanceType: "Corrective", // no field backing this yet — every request is corrective for now
+    stage: STAGE_MAP[r.status],
+    equipment: eq
+      ? {
+          id: eq.id,
+          name: eq.name,
+          location: eq.usedInLocation ?? null,
+          assetCode: eq.assetCode ?? null,
+          serialNo: eq.serialNumber ?? null, // note: Equipment schema field is serialNumber, not serialNo
+          model: eq.model ?? null,
+        }
+      : null,
+    category: eq?.category ? { id: 0, name: eq.category } : null,
+    maintenanceTeam: eq?.maintenanceTeam ? { id: 0, name: eq.maintenanceTeam } : null,
+    technicians: r.technicians ?? [],
+    createdBy: r.reportedBy ? { id: 0, name: r.reportedBy } : null,
+    createDate: (r as any).createdAt ? new Date((r as any).createdAt).toISOString() : null,
+    scheduleDate: r.scheduleDate ? new Date(r.scheduleDate).toISOString() : null,
+    scheduleEnd: r.closeDate ? new Date(r.closeDate).toISOString() : null, // no separate scheduleEnd field — reuse closeDate as an estimate
+    closeDate: r.closeDate ? new Date(r.closeDate).toISOString() : null,
+    duration: computeDuration(r.scheduleDate, r.closeDate),
+    isRecurring: false, // no recurrence support yet
+    color: 0,
   };
 }
 
-// ─── Reads ───────────────────────────────────────────────────────────────────
-
-export interface MaintenanceListResult {
-  requests: ReturnType<typeof serializeRequest>[];
-  stages: StageInfo[];
-  total: number;
+async function buildEquipmentMap(equipmentIds: number[]) {
+  const uniqueIds = [...new Set(equipmentIds)];
+  const items = await EquipmentModel.find({ id: { $in: uniqueIds } }).lean();
+  return new Map(items.map((eq) => [eq.id, eq]));
 }
 
-export async function getMaintenanceRequests(): Promise<MaintenanceListResult> {
-  const rawRequests = await MaintenanceRequestModel.find({})
-    .sort({ createdAt: -1 })
-    .lean<IMaintenanceRequest[]>();
+// ─── List / detail ────────────────────────────────────────────────────────────
 
-  const equipmentIds = uniqueIds(rawRequests.map((r) => r.equipmentId));
-  const equipmentMap = await fetchEquipmentMap(equipmentIds);
+export async function getMaintenanceRequests() {
+  const requests = await MaintenanceRequestModel.find().sort({ createdAt: -1 }).lean();
+  const equipmentMap = await buildEquipmentMap(requests.map((r) => r.equipmentId));
 
-  const requests = rawRequests.map((r) => serializeRequest(r, equipmentMap));
-
-  return { requests, stages: STAGES, total: requests.length };
+  return {
+    requests: requests.map((r) => transformRequest(r as any, equipmentMap)),
+    stages: ALL_STAGES,
+    total: requests.length,
+  };
 }
 
 export async function getMaintenanceRequestById(id: number) {
-  const doc = await MaintenanceRequestModel.findOne({ id }).lean<IMaintenanceRequest>();
-  if (!doc) return null;
+  const r = await MaintenanceRequestModel.findOne({ id }).lean();
+  if (!r) return null;
 
-  const equipmentMap = await fetchEquipmentMap([doc.equipmentId]);
-  return serializeRequest(doc, equipmentMap);
+  const equipmentMap = await buildEquipmentMap([r.equipmentId]);
+  return transformRequest(r as any, equipmentMap);
 }
 
-// ─── Update ──────────────────────────────────────────────────────────────────
-
-export interface UpdateRequestInput {
-  status?: MaintenanceStatus;
-  technicians?: ITechnicianRef[];
-  scheduleDate?: string;
-  priority?: string;
-  closeDate?: string;
-}
+// ─── Update / delete ────────────────────────────────────────────────────────
 
 export async function updateMaintenanceRequestRecord(
   id: number,
-  input: UpdateRequestInput,
-): Promise<void> {
-  const values: Record<string, any> = {};
-
-  if (input.status !== undefined) {
-    if (!VALID_STATUSES.includes(input.status)) {
-      throw new Error(`status must be one of: ${VALID_STATUSES.join(", ")}`);
-    }
-    values.status = input.status;
-    if (input.status === "done") values.closeDate = new Date();
-  }
-  if (input.scheduleDate) values.scheduleDate = new Date(input.scheduleDate);
-  if (input.priority) values.priority = input.priority;
-  if (input.closeDate) values.closeDate = new Date(input.closeDate);
-  if (input.technicians) values.technicians = input.technicians;
-
-  if (Object.keys(values).length === 0) return;
-
-  await MaintenanceRequestModel.updateOne({ id }, { $set: values });
+  data: { status?: MaintenanceStatus; technicians?: { id: number; name: string }[] },
+) {
+  return MaintenanceRequestModel.findOneAndUpdate({ id }, { $set: data }, { new: true });
 }
 
-// ─── Delete ──────────────────────────────────────────────────────────────────
-
-export async function deleteMaintenanceRequestRecord(id: number): Promise<void> {
-  await MaintenanceRequestModel.deleteOne({ id });
-  await MaintenanceMessageModel.deleteMany({ requestId: id });
+export async function deleteMaintenanceRequestRecord(id: number) {
+  return MaintenanceRequestModel.findOneAndDelete({ id });
 }
 
-// ─── Messages / chatter ────────────────────────────────────────────────────────
+// ─── Messages / comments ───────────────────────────────────────────────────────
 
-export interface PostCommentInput {
-  body: string;
-  authorName: string;
-  isInternal?: boolean;
-}
+export async function getRequestMessages(requestId: number): Promise<MaintenanceMessageDTO[]> {
+  const messages = await MaintenanceMessageModel.find({ requestId }).sort({ createdAt: 1 }).lean();
 
-export interface PostCommentResult {
-  id: string;
-  requestId: number;
-  body: string;
-  authorName: string;
-  isInternal: boolean;
-  date: string;
-}
-
-export async function getRequestMessages(requestId: number): Promise<PostCommentResult[]> {
-  const raw = await MaintenanceMessageModel.find({ requestId })
-    .sort({ createdAt: 1 })
-    .lean();
-
-  return raw.map((m: any) => ({
-    id: String(m._id),
-    requestId: m.requestId,
+  return messages.map((m) => ({
+    id: (m._id as any).toString().length ? Number((m as any).id ?? 0) : 0,
+    type: "comment" as const,
+    author: { id: 0, name: m.authorName },
     body: m.body,
-    authorName: m.authorName,
+    date: new Date((m as any).createdAt).toISOString(),
     isInternal: m.isInternal,
-    date: m.createdAt.toISOString(),
+    parentId: null,
   }));
 }
 
 export async function postRequestComment(
   requestId: number,
-  input: PostCommentInput,
-): Promise<PostCommentResult> {
-  const { body, authorName, isInternal = false } = input;
-
-  const doc = await MaintenanceMessageModel.create({
+  input: { body: string; authorName: string; isInternal?: boolean },
+) {
+  const message = await MaintenanceMessageModel.create({
     requestId,
-    body,
-    authorName,
-    isInternal,
+    body: input.body,
+    authorName: input.authorName,
+    isInternal: input.isInternal ?? false,
   });
 
   return {
-    id: String(doc._id),
-    requestId,
-    body: doc.body,
-    authorName: doc.authorName,
-    isInternal: doc.isInternal,
-    date: doc.createdAt.toISOString(),
+    id: (message._id as any).toString(),
+    body: message.body,
+    authorName: message.authorName,
+    date: new Date((message as any).createdAt).toISOString(),
+    isInternal: message.isInternal,
   };
 }
