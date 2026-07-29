@@ -469,7 +469,7 @@ export const deleteUser = CatchAsyncError(
     try {
       const userRole = req.user?.role;
 
-      if (userRole !== "admin") {
+      if (userRole !== "manager") {
         return next(
           new ErrorHandler("You are not authorized to delete users", 403),
         );
