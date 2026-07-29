@@ -128,9 +128,11 @@ export const getAllTickets = CatchAsyncError(
         return next(new ErrorHandler("Not authorized", 403));
       }
 
-      const { status } = req.query;
+      const { status, category } = req.query;
 
-      const filter: Record<string, any> = status ? { status } : {};
+      const filter: Record<string, any> = {};
+      if (status) filter.status = status;
+      if (category) filter.category = category;
 
       const records = await supportTicketModel.find(filter)
         .sort({ createdAt: -1 })
@@ -167,6 +169,10 @@ export const updateTicket = CatchAsyncError(
         return next(new ErrorHandler("Ticket not found", 404));
       }
 
+      // Was there no reply before this update? If adminReply is being set now,
+      // this is the first reply — that's when we notify the requester.
+      const isFirstReply = !existing.adminReply && !!adminReply;
+
       if (status) existing.status = status;
       if (adminReply) {
         existing.adminReply = adminReply;
@@ -180,6 +186,22 @@ export const updateTicket = CatchAsyncError(
         message: "Ticket updated",
         data: formatTicket(existing),
       });
+
+      if (isFirstReply) {
+        sendMail({
+          email: existing.userEmail,
+          subject: `Re: [TKT-${existing._id}] ${existing.subject}`,
+          template: "support-ticket-reply.ejs",
+          data: {
+            id:        existing._id,
+            userName:  existing.userName,
+            subject:   existing.subject,
+            message:   existing.message,
+            adminReply,
+            status:    existing.status,
+          },
+        }).catch(console.error);
+      }
     } catch (error: any) {
       return next(new ErrorHandler(error.message || "Something went wrong", 400));
     }
