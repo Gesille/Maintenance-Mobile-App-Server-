@@ -44,4 +44,25 @@ export const getTechniciansService = async () => {
     .lean();
 };
 
+// ─── Manager creates a user directly (no activation-email flow) ─────────────
+export const createUserService = async (data: {
+  name: string;
+  email: string;
+  password: string;
+  role: string;
+  phone?: string;
+}) => {
+  const user = await userModel.create({
+    name: data.name,
+    email: data.email,
+    password: data.password,
+    role: data.role,
+    phone: data.phone,
+    isVerified: true, // manager-created accounts don't need email verification
+  });
 
+  // strip password before returning
+  const safeUser = user.toObject();
+  delete (safeUser as any).password;
+  return safeUser;
+};

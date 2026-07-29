@@ -3,11 +3,11 @@ import { Request, Response, NextFunction } from "express";
 import jwt, { JwtPayload, Secret } from "jsonwebtoken";
 import { CatchAsyncError } from "../middleware/catchAsyncError.js";
 import ErrorHandler from "../utils/ErrorHandler.js";
-import userModel, { IUser } from "../models/user.model.js";
+import userModel, { IUser, ROLES } from "../models/user.model.js";
 import sendMail from "../utils/sendMail.js";
 
 import { accessTokenOptions, refreshTokenOptions, sendToken } from "../utils/jwt.js";
-import { getAllUsersService, getTechniciansService, getUserById, updateUserRoleService } from "../services/user.service.js";
+import { createUserService, getAllUsersService, getTechniciansService, getUserById, updateUserRoleService } from "../services/user.service.js";
 import cloudinary from "cloudinary"
 
 
@@ -436,6 +436,16 @@ export const updateUserRole = CatchAsyncError(
 
       const { id, role } = req.body;
 
+      if (!id || !role) {
+        return next(new ErrorHandler("id and role are required", 400));
+      }
+
+      if (!Object.values(ROLES).includes(role)) {
+        return next(
+          new ErrorHandler(`role must be one of: ${Object.values(ROLES).join(", ")}`, 400),
+        );
+      }
+
       const isUserExist = await userModel.findById(id);
 
       if (!isUserExist) {
@@ -479,7 +489,47 @@ export const deleteUser = CatchAsyncError(
     }
   },
 );
+export const createUserByManager = CatchAsyncError(
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const managerRole = req.user?.role;
+      if (managerRole !== "manager") {
+        return next(new ErrorHandler("You are not authorized to add users", 403));
+      }
 
+      const { name, email, password, role = ROLES.USER, phone } = req.body;
+
+      if (!name || !email || !password) {
+        return next(new ErrorHandler("name, email and password are required", 400));
+      }
+
+      if (password.length < 6) {
+        return next(new ErrorHandler("Password must be at least 6 characters", 400));
+      }
+
+      if (!Object.values(ROLES).includes(role)) {
+        return next(
+          new ErrorHandler(`role must be one of: ${Object.values(ROLES).join(", ")}`, 400),
+        );
+      }
+
+      const existing = await userModel.findOne({ email });
+      if (existing) {
+        return next(new ErrorHandler("A user with this email already exists", 400));
+      }
+
+      const user = await createUserService({ name, email, password, role, phone });
+
+      res.status(201).json({
+        success: true,
+        message: "User created successfully",
+        user,
+      });
+    } catch (error: any) {
+      return next(new ErrorHandler(error.message || "Something went wrong", 400));
+    }
+  },
+);
 export const getTechnicians = CatchAsyncError(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
