@@ -4,6 +4,7 @@ import MaintenanceRequestModel, {
   MaintenanceStatus,
 } from "../models/Maintenancerequest.model.js";
 import MaintenanceMessageModel from "../models/MaintenanceMessage.model.js";
+import sendMail from "../utils/sendMail.js";
 
 // ─── Frontend-facing shapes (mirrors Maintenanceapi.ts on the frontend) ──────
 
@@ -33,7 +34,7 @@ export interface MaintenanceRequestDTO {
   } | null;
   category: { id: number; name: string } | null;
   maintenanceTeam: { id: number; name: string } | null;
-  technicians: { id: number; name: string }[];
+  technicians: { id: string; name: string }[];
   createdBy: { id: number; name: string } | null;
   createDate: string | null;
   scheduleDate: string | null;
@@ -145,14 +146,13 @@ export async function getMaintenanceRequestById(id: number) {
 
 export async function updateMaintenanceRequestRecord(
   id: number,
-  data: { status?: MaintenanceStatus; technicians?: { id: number; name: string }[] },
+  data: { status?: MaintenanceStatus; technicians?: { id: string; name: string; email: string }[] },
 ) {
   const update: Record<string, any> = { ...data };
 
   if (data.status === "done") {
     update.closeDate = new Date();
   } else if (data.status) {
-    
     update.closeDate = null;
   }
 
@@ -197,4 +197,61 @@ export async function postRequestComment(
     date: new Date((message as any).createdAt).toISOString(),
     isInternal: message.isInternal,
   };
+}
+
+
+
+export async function assignTechniciansService(
+  requestId: number,
+  technicians: { id: string; name: string; email: string }[],
+) {
+  const request = await MaintenanceRequestModel.findOneAndUpdate(
+    { id: requestId },
+    {
+      $set: {
+        technicians,
+        // moving into repair once someone is actually assigned
+        status: "under_repair",
+        closeDate: null,
+      },
+    },
+    { new: true },
+  );
+
+  if (!request) return null;
+
+  const equipment = await EquipmentModel.findOne({ id: request.equipmentId }).lean();
+
+  // Fire-and-forget an email per technician — don't block the response on SMTP
+  for (const tech of technicians) {
+    sendMail({
+      email: tech.email,
+      subject: `🔧 New Repair Assigned: ${equipment?.name ?? "Equipment"} (#${request.id})`,
+      template: "technician-assignment.ejs",
+      data: {
+        technicianName: tech.name,
+        requestId: request.id,
+        requestName: request.name,
+        priority: request.priority,
+        description: request.description,
+        reportedBy: request.reportedBy,
+        reportedByEmail: request.reportedByEmail,
+        equipment: {
+          name: equipment?.name ?? "—",
+          assetCode: equipment?.assetCode ?? "—",
+          location: equipment?.usedInLocation ?? "—",
+          restaurant: equipment?.restaurant ?? "—",
+          model: equipment?.model ?? "—",
+          serialNumber: equipment?.serialNumber ?? "—",
+          category: equipment?.category ?? "—",
+          vendor: equipment?.vendor ?? "—",
+        },
+      },
+    }).catch((err) => {
+      console.error(`[SMTP] Failed to notify technician ${tech.email}:`, err.message);
+    });
+  }
+
+  const equipmentMap = await buildEquipmentMap([request.equipmentId]);
+  return transformRequest(request as any, equipmentMap);
 }

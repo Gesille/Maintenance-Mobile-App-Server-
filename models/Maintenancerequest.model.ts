@@ -10,8 +10,9 @@ export interface IMaintenanceMedia {
 }
 
 export interface ITechnicianRef {
-  id: number;
+  id: string;      
   name: string;
+  email: string;
 }
 
 export interface IMaintenanceRequest extends Document {
@@ -68,8 +69,9 @@ const mediaSchema = new Schema<IMaintenanceMedia>(
 
 const technicianSchema = new Schema<ITechnicianRef>(
   {
-    id: { type: Number, required: true },
+    id: { type: String, required: true },
     name: { type: String, required: true },
+    email: { type: String, required: true },
   },
   { _id: false },
 );

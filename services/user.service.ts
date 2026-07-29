@@ -36,5 +36,12 @@ export const updateUserRoleService = async (
     user,
   });
 };
+export const getTechniciansService = async () => {
+  return userModel
+    .find({ role: "technician" })
+    .select("name email")
+    .sort({ name: 1 })
+    .lean();
+};
 
 

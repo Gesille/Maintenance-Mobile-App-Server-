@@ -7,6 +7,7 @@ import {
   deleteMaintenanceRequestRecord,
   getRequestMessages,
   postRequestComment,
+  assignTechniciansService,
 } from "../services/maintenance.service.js";
 import { MaintenanceStatus, VALID_STATUSES } from "../models/Maintenancerequest.model.js";
 
@@ -81,8 +82,7 @@ export const updateMaintenanceRequestStatus = async (
 };
 
 // ─── Assign technicians ────────────────────────────────────────────────────────
-// PATCH /maintenance/:id/assign
-// Body: { technicians: { id: number, name: string }[] }
+
 export const assignTechnicians = async (
   req: Request,
   res: Response,
@@ -94,18 +94,35 @@ export const assignTechnicians = async (
       return res.status(400).json({ success: false, message: "Invalid ID" });
     }
 
-    const { technicians } = req.body as { technicians: { id: number; name: string }[] };
+    const { technicians } = req.body as {
+      technicians: { id: string; name: string; email: string }[];
+    };
 
     if (!Array.isArray(technicians) || technicians.length === 0) {
       return res.status(400).json({
         success: false,
-        message: "technicians must be a non-empty array of { id, name }",
+        message: "technicians must be a non-empty array of { id, name, email }",
       });
     }
 
-    await updateMaintenanceRequestRecord(id, { technicians });
+    const missingEmail = technicians.find((t) => !t.email?.trim());
+    if (missingEmail) {
+      return res.status(400).json({
+        success: false,
+        message: `Technician "${missingEmail.name}" has no email on file`,
+      });
+    }
 
-    res.status(200).json({ success: true, message: "Technicians assigned" });
+    const updated = await assignTechniciansService(id, technicians);
+    if (!updated) {
+      return res.status(404).json({ success: false, message: "Request not found" });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: `Assigned and emailed ${technicians.length} technician(s)`,
+      data: updated,
+    });
   } catch (error: any) {
     next(new ErrorHandler(error.message ?? "Something went wrong", 400));
   }
@@ -186,3 +203,4 @@ export const postMaintenanceRequestComment = async (
     next(new ErrorHandler(error.message ?? "Something went wrong", 400));
   }
 };
+

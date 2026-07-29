@@ -7,7 +7,7 @@ import userModel, { IUser } from "../models/user.model.js";
 import sendMail from "../utils/sendMail.js";
 
 import { accessTokenOptions, refreshTokenOptions, sendToken } from "../utils/jwt.js";
-import { getAllUsersService, getUserById, updateUserRoleService } from "../services/user.service.js";
+import { getAllUsersService, getTechniciansService, getUserById, updateUserRoleService } from "../services/user.service.js";
 import cloudinary from "cloudinary"
 
 
@@ -480,3 +480,26 @@ export const deleteUser = CatchAsyncError(
   },
 );
 
+export const getTechnicians = CatchAsyncError(
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const userRole = req.user?.role;
+      if (userRole !== "manager" && userRole !== "admin") {
+        return next(new ErrorHandler("Not authorized", 403));
+      }
+
+      const technicians = await getTechniciansService();
+
+      res.status(200).json({
+        success: true,
+        data: technicians.map((t: any) => ({
+          id: t._id.toString(),
+          name: t.name,
+          email: t.email,
+        })),
+      });
+    } catch (error: any) {
+      return next(new ErrorHandler(error.message, 400));
+    }
+  },
+);
