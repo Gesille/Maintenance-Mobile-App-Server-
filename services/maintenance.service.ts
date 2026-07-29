@@ -29,6 +29,7 @@ export interface MaintenanceRequestDTO {
     assetCode: string | null;
     serialNo: string | null;
     model: string | null;
+    restaurant: string | null;
   } | null;
   category: { id: number; name: string } | null;
   maintenanceTeam: { id: number; name: string } | null;
@@ -96,6 +97,7 @@ function transformRequest(
           assetCode: eq.assetCode ?? null,
           serialNo: eq.serialNumber ?? null, // note: Equipment schema field is serialNumber, not serialNo
           model: eq.model ?? null,
+           restaurant: eq.restaurant ?? null,
         }
       : null,
     category: eq?.category ? { id: 0, name: eq.category } : null,
@@ -104,7 +106,7 @@ function transformRequest(
     createdBy: r.reportedBy ? { id: 0, name: r.reportedBy } : null,
     createDate: (r as any).createdAt ? new Date((r as any).createdAt).toISOString() : null,
     scheduleDate: r.scheduleDate ? new Date(r.scheduleDate).toISOString() : null,
-    scheduleEnd: r.closeDate ? new Date(r.closeDate).toISOString() : null, // no separate scheduleEnd field — reuse closeDate as an estimate
+    scheduleEnd: r.closeDate ? new Date(r.closeDate).toISOString() : null, // reuse closeDate as an estimate
     closeDate: r.closeDate ? new Date(r.closeDate).toISOString() : null,
     duration: computeDuration(r.scheduleDate, r.closeDate),
     isRecurring: false, // no recurrence support yet
@@ -145,7 +147,16 @@ export async function updateMaintenanceRequestRecord(
   id: number,
   data: { status?: MaintenanceStatus; technicians?: { id: number; name: string }[] },
 ) {
-  return MaintenanceRequestModel.findOneAndUpdate({ id }, { $set: data }, { new: true });
+  const update: Record<string, any> = { ...data };
+
+  if (data.status === "done") {
+    update.closeDate = new Date();
+  } else if (data.status) {
+    
+    update.closeDate = null;
+  }
+
+  return MaintenanceRequestModel.findOneAndUpdate({ id }, { $set: update }, { new: true });
 }
 
 export async function deleteMaintenanceRequestRecord(id: number) {

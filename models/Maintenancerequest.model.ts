@@ -97,14 +97,9 @@ const maintenanceRequestSchema = new Schema<IMaintenanceRequest>(
   { timestamps: true },
 );
 
-maintenanceRequestSchema.pre("save", async function (next) {
-  try {
-    if (this.isNew && !this.id) {
-      this.id = await getNextSequence("maintenanceRequest");
-    }
-   
-  } catch (err) {
-   
+maintenanceRequestSchema.pre("save", async function () {
+  if (this.isNew && !this.id) {
+    this.id = await getNextSequence("maintenanceRequest");
   }
 });
 
