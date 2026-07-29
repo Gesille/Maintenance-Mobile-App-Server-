@@ -210,7 +210,6 @@ export async function assignTechniciansService(
     {
       $set: {
         technicians,
-        // moving into repair once someone is actually assigned
         status: "under_repair",
         closeDate: null,
       },
@@ -222,34 +221,40 @@ export async function assignTechniciansService(
 
   const equipment = await EquipmentModel.findOne({ id: request.equipmentId }).lean();
 
-  // Fire-and-forget an email per technician — don't block the response on SMTP
+  // Send emails and WAIT for them — no more fire-and-forget
   for (const tech of technicians) {
-    sendMail({
-      email: tech.email,
-      subject: `🔧 New Repair Assigned: ${equipment?.name ?? "Equipment"} (#${request.id})`,
-      template: "technician-assignment.ejs",
-      data: {
-        technicianName: tech.name,
-        requestId: request.id,
-        requestName: request.name,
-        priority: request.priority,
-        description: request.description,
-        reportedBy: request.reportedBy,
-        reportedByEmail: request.reportedByEmail,
-        equipment: {
-          name: equipment?.name ?? "—",
-          assetCode: equipment?.assetCode ?? "—",
-          location: equipment?.usedInLocation ?? "—",
-          restaurant: equipment?.restaurant ?? "—",
-          model: equipment?.model ?? "—",
-          serialNumber: equipment?.serialNumber ?? "—",
-          category: equipment?.category ?? "—",
-          vendor: equipment?.vendor ?? "—",
+    try {
+      await sendMail({
+        email: tech.email,
+        subject: `🔧 New Repair Assigned: ${equipment?.name ?? "Equipment"} (#${request.id})`,
+        template: "technician-assignment.ejs",
+        data: {
+          technicianName: tech.name,
+          requestId: request.id,
+          requestName: request.name,
+          priority: request.priority,
+          description: request.description,
+          reportedBy: request.reportedBy,
+          reportedByEmail: request.reportedByEmail,
+          equipment: {
+            name: equipment?.name ?? "—",
+            assetCode: equipment?.assetCode ?? "—",
+            location: equipment?.usedInLocation ?? "—",
+            restaurant: equipment?.restaurant ?? "—",
+            model: equipment?.model ?? "—",
+            serialNumber: equipment?.serialNumber ?? "—",
+            category: equipment?.category ?? "—",
+            vendor: equipment?.vendor ?? "—",
+          },
         },
-      },
-    }).catch((err) => {
-      console.error(`[SMTP] Failed to notify technician ${tech.email}:`, err.message);
-    });
+      });
+
+      console.log(`✅ Email successfully sent to technician: ${tech.email}`);
+    } catch (err: any) {
+      console.error(`❌ Failed to send email to technician ${tech.email}:`, err.message);
+      // Stop everything and throw — this will bubble up to the controller's catch block
+      throw new Error(`Failed to send email to technician "${tech.name}" (${tech.email}): ${err.message}`);
+    }
   }
 
   const equipmentMap = await buildEquipmentMap([request.equipmentId]);
