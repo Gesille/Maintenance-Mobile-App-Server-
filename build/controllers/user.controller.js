@@ -1,11 +1,10 @@
 import jwt from "jsonwebtoken";
 import { CatchAsyncError } from "../middleware/catchAsyncError.js";
 import ErrorHandler from "../utils/ErrorHandler.js";
-import userModel from "../models/user.model.js";
+import userModel, { ROLES } from "../models/user.model.js";
 import sendMail from "../utils/sendMail.js";
-import { odooRequest } from "../odoo/odoo.client.js";
 import { accessTokenOptions, refreshTokenOptions, sendToken } from "../utils/jwt.js";
-import { getAllUsersService, getUserById, updateUserRoleService } from "../services/user.service.js";
+import { createUserService, getAllUsersService, getTechniciansService, getUserById, updateUserRoleService } from "../services/user.service.js";
 import cloudinary from "cloudinary";
 export const createActivationToken = (user) => {
     const activationCode = Math.floor(1000 + Math.random() * 9000).toString();
@@ -73,34 +72,15 @@ export const activateUser = CatchAsyncError(async (req, res, next) => {
         if (existUser) {
             return next(new ErrorHandler("Email is already exist", 400));
         }
-        //  create user first
-        const user = await userModel.create({
+        // create user
+        await userModel.create({
             name,
             email,
             password,
         });
-        let partnerId;
-        try {
-            //create partner in Odoo
-            partnerId = await odooRequest("res.partner", "create", [
-                {
-                    name: user.name,
-                    email: user.email,
-                },
-            ]);
-        }
-        catch (err) {
-            console.error("❌ Odoo error:", err);
-            // 🔥 IMPORTANT: rollback user
-            await user.deleteOne();
-            return next(new ErrorHandler("Failed to sync with Odoo", 500));
-        }
-        // save partner id
-        user.odooPartnerId = Number(partnerId);
-        await user.save();
         res.status(201).json({
             success: true,
-            message: "User activated and synced with Odoo",
+            message: "User activated successfully",
         });
     }
     catch (error) {
@@ -307,6 +287,12 @@ export const updateUserRole = CatchAsyncError(async (req, res, next) => {
             return next(new ErrorHandler("You are not authorized to update user roles", 403));
         }
         const { id, role } = req.body;
+        if (!id || !role) {
+            return next(new ErrorHandler("id and role are required", 400));
+        }
+        if (!Object.values(ROLES).includes(role)) {
+            return next(new ErrorHandler(`role must be one of: ${Object.values(ROLES).join(", ")}`, 400));
+        }
         const isUserExist = await userModel.findById(id);
         if (!isUserExist) {
             return res.status(400).json({
@@ -324,7 +310,7 @@ export const updateUserRole = CatchAsyncError(async (req, res, next) => {
 export const deleteUser = CatchAsyncError(async (req, res, next) => {
     try {
         const userRole = req.user?.role;
-        if (userRole !== "admin") {
+        if (userRole !== "manager") {
             return next(new ErrorHandler("You are not authorized to delete users", 403));
         }
         const { id } = req.params;
@@ -336,6 +322,57 @@ export const deleteUser = CatchAsyncError(async (req, res, next) => {
         res.status(201).json({
             success: true,
             message: "User deleted successfully",
+        });
+    }
+    catch (error) {
+        return next(new ErrorHandler(error.message, 400));
+    }
+});
+export const createUserByManager = CatchAsyncError(async (req, res, next) => {
+    try {
+        const managerRole = req.user?.role;
+        if (managerRole !== "manager") {
+            return next(new ErrorHandler("You are not authorized to add users", 403));
+        }
+        const { name, email, password, role = ROLES.USER, phone } = req.body;
+        if (!name || !email || !password) {
+            return next(new ErrorHandler("name, email and password are required", 400));
+        }
+        if (password.length < 6) {
+            return next(new ErrorHandler("Password must be at least 6 characters", 400));
+        }
+        if (!Object.values(ROLES).includes(role)) {
+            return next(new ErrorHandler(`role must be one of: ${Object.values(ROLES).join(", ")}`, 400));
+        }
+        const existing = await userModel.findOne({ email });
+        if (existing) {
+            return next(new ErrorHandler("A user with this email already exists", 400));
+        }
+        const user = await createUserService({ name, email, password, role, phone });
+        res.status(201).json({
+            success: true,
+            message: "User created successfully",
+            user,
+        });
+    }
+    catch (error) {
+        return next(new ErrorHandler(error.message || "Something went wrong", 400));
+    }
+});
+export const getTechnicians = CatchAsyncError(async (req, res, next) => {
+    try {
+        const userRole = req.user?.role;
+        if (userRole !== "manager" && userRole !== "admin") {
+            return next(new ErrorHandler("Not authorized", 403));
+        }
+        const technicians = await getTechniciansService();
+        res.status(200).json({
+            success: true,
+            data: technicians.map((t) => ({
+                id: t._id.toString(),
+                name: t.name,
+                email: t.email,
+            })),
         });
     }
     catch (error) {

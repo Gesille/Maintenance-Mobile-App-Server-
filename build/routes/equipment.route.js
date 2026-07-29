@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { createMaintenanceRequest, getAllEquipment, getEquipmentById, printAllQRPdf, printSingleQRPdf, scanEquipmentQR, } from "../controllers/equipment.controller.js";
+import { createEquipment, createMaintenanceRequest, deleteEquipment, generateEquipmentQR, generateMissingQRs, getAllEquipment, getEquipmentById, printAllQRPdf, printSingleQRPdf, scanEquipmentQR, updateEquipment, } from "../controllers/equipment.controller.js";
 import { isAuthenticated } from "../middleware/auth.js";
 import { refreshTokenMiddleware } from "../controllers/user.controller.js";
 import { getAllMaintenanceRequests } from "../controllers/maintenance.controller.js";
@@ -9,7 +9,12 @@ equipmentRouter.get("/get-all-equipment", refreshTokenMiddleware, isAuthenticate
 equipmentRouter.get("/get-equipment/:id", refreshTokenMiddleware, isAuthenticated, getEquipmentById);
 equipmentRouter.get("/get-all-qr", refreshTokenMiddleware, isAuthenticated, printAllQRPdf);
 equipmentRouter.get("/get-qr/:id", refreshTokenMiddleware, isAuthenticated, printSingleQRPdf);
+equipmentRouter.post("/generate-qr/:id", refreshTokenMiddleware, isAuthenticated, generateEquipmentQR);
+equipmentRouter.post("/generate-missing-qr", refreshTokenMiddleware, isAuthenticated, generateMissingQRs);
 equipmentRouter.get("/scan/:id", refreshTokenMiddleware, isAuthenticated, scanEquipmentQR);
 equipmentRouter.post("/create-request", refreshTokenMiddleware, isAuthenticated, uploadMaintenanceMedia.array('files', 10), createMaintenanceRequest);
 equipmentRouter.get("/get-all-requests", refreshTokenMiddleware, isAuthenticated, getAllMaintenanceRequests);
+equipmentRouter.post("/create-equipment", refreshTokenMiddleware, isAuthenticated, createEquipment);
+equipmentRouter.put("/update-equipment/:id", refreshTokenMiddleware, isAuthenticated, updateEquipment);
+equipmentRouter.delete("/delete-equipment/:id", refreshTokenMiddleware, isAuthenticated, deleteEquipment);
 export default equipmentRouter;

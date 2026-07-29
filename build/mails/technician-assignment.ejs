@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <style>
+    body { font-family: Arial, sans-serif; background:#F8FAFF; margin:0; padding:0; }
+    .container { max-width: 560px; margin: 24px auto; background:#fff; border-radius:12px; overflow:hidden; border:1px solid #E8EAFF; }
+    .header { background: linear-gradient(135deg,#6366F1,#8B5CF6); padding:20px 24px; color:#fff; }
+    .header h2 { margin:0; font-size:18px; }
+    .badge { display:inline-block; font-size:11px; font-weight:700; padding:3px 10px; border-radius:99px; background:rgba(255,255,255,0.2); margin-top:6px; }
+    .body { padding:24px; color:#334155; font-size:14px; line-height:1.6; }
+    table { width:100%; border-collapse: collapse; margin-top:14px; }
+    td { padding:8px 0; border-bottom:1px solid #F0F4FF; font-size:13px; vertical-align: top; }
+    td.label { color:#94A3B8; width:140px; font-weight:600; text-transform:uppercase; font-size:11px; letter-spacing:.05em; }
+    td.value { color:#0F172A; font-weight:500; }
+    .desc-box { background:#F8FAFF; border:1px solid #E8EAFF; border-radius:10px; padding:14px 16px; margin-top:16px; white-space:pre-wrap; }
+    .footer { padding:16px 24px; font-size:11px; color:#94A3B8; text-align:center; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h2>New Repair Assigned to You</h2>
+      <span class="badge">Request #<%= requestId %> · Priority: <%= priority %></span>
+    </div>
+    <div class="body">
+      <p>Hi <strong><%= technicianName %></strong>,</p>
+      <p>You've been assigned to repair the following equipment:</p>
+
+      <table>
+        <tr><td class="label">Equipment</td><td class="value"><%= equipment.name %></td></tr>
+        <tr><td class="label">Asset Code</td><td class="value"><%= equipment.assetCode %></td></tr>
+        <tr><td class="label">Location</td><td class="value"><%= equipment.location %></td></tr>
+        <tr><td class="label">Restaurant</td><td class="value"><%= equipment.restaurant %></td></tr>
+        <tr><td class="label">Category</td><td class="value"><%= equipment.category %></td></tr>
+        <tr><td class="label">Model</td><td class="value"><%= equipment.model %></td></tr>
+        <tr><td class="label">Serial No.</td><td class="value"><%= equipment.serialNumber %></td></tr>
+        <tr><td class="label">Vendor</td><td class="value"><%= equipment.vendor %></td></tr>
+        <tr><td class="label">Reported By</td><td class="value"><%= reportedBy %> (<%= reportedByEmail %>)</td></tr>
+      </table>
+
+      <p style="margin-top:18px; font-weight:600; color:#0F172A;">Issue Description</p>
+      <div class="desc-box"><%= description %></div>
+
+      <p style="margin-top:20px;">Please log in to MaintenancePro to update the status once you begin and complete the repair.</p>
+    </div>
+    <div class="footer">MaintenancePro · Automated notification</div>
+  </div>
+</body>
+</html>

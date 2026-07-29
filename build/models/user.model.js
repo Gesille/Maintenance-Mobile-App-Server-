@@ -53,9 +53,6 @@ const userSchema = new mongoose.Schema({
         zip: String,
     },
     orders: [{ orderId: String }],
-    odooPartnerId: {
-        type: Number,
-    },
 }, { timestamps: true });
 //Mash Password before saving
 userSchema.pre("save", async function () {

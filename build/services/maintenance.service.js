@@ -1,110 +1,168 @@
-import { MAINTENANCE_REQUEST_FIELDS, STAGE_FIELDS, EQUIPMENT_FIELDS, MESSAGE_FIELDS } from "../@types/Maintenance.constants.js";
-import { mapStage, mapRequest, mapMessage } from "../mapper/maintenance.mappers.js";
-import { odooRequest } from "../odoo/odoo.client.js";
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-function uniqueIds(values) {
-    return [...new Set(values.filter((v) => v !== undefined))];
+import EquipmentModel from "../models/equipment.model.js";
+import MaintenanceRequestModel from "../models/Maintenancerequest.model.js";
+import MaintenanceMessageModel from "../models/MaintenanceMessage.model.js";
+import sendMail from "../utils/sendMail.js";
+// ─── Stage derivation ─────────────────────────────────────────────────────────
+// There's no separate "stage" collection in Mongo — status IS the stage.
+// This gives the frontend a stable, ordered list to render as kanban columns.
+const STAGE_MAP = {
+    new: { id: 1, name: "New", sequence: 1, isfold: false },
+    under_repair: { id: 2, name: "Under Repair", sequence: 2, isfold: false },
+    done: { id: 3, name: "Done", sequence: 3, isfold: true },
+    cancel: { id: 4, name: "Cancelled", sequence: 4, isfold: true },
+};
+export const ALL_STAGES = Object.values(STAGE_MAP);
+// ─── Transform: Mongoose doc → frontend DTO ──────────────────────────────────
+function computeDuration(scheduleDate, closeDate) {
+    if (!scheduleDate || !closeDate)
+        return 0;
+    const hours = (closeDate.getTime() - scheduleDate.getTime()) / (1000 * 60 * 60);
+    return hours > 0 ? Math.round(hours * 10) / 10 : 0;
 }
-// ─── Data fetchers ───────────────────────────────────────────────────────────
-async function fetchRequests() {
-    return odooRequest("maintenance.request", "search_read", [[]], {
-        fields: MAINTENANCE_REQUEST_FIELDS,
-        order: "create_date desc",
-    });
-}
-async function fetchStages() {
-    const raw = await odooRequest("maintenance.stage", "search_read", [[]], {
-        fields: STAGE_FIELDS,
-        order: "sequence asc",
-    });
-    return new Map(raw.map((s) => [s.id, mapStage(s)]));
-}
-async function fetchEquipments(ids) {
-    if (ids.length === 0)
-        return new Map();
-    const raw = await odooRequest("maintenance.equipment", "search_read", [[["id", "in", ids]]], { fields: EQUIPMENT_FIELDS });
-    return new Map(raw.map((eq) => [eq.id, eq]));
-}
-async function fetchUsers(ids) {
-    if (ids.length === 0)
-        return new Map();
-    const raw = await odooRequest("res.users", "read", [ids], {
-        fields: ["id", "name"],
-    });
-    return new Map(raw.map((u) => [u.id, u.name]));
-}
-async function fetchMessages(requestId) {
-    return odooRequest("mail.message", "search_read", [
-        [
-            ["res_id", "=", requestId],
-            ["model", "=", "maintenance.request"],
-            ["message_type", "in", ["comment", "email"]],
-        ],
-    ], { fields: MESSAGE_FIELDS, order: "date asc" });
-}
-// ─── Service ─────────────────────────────────────────────────────────────────
-export async function getMaintenanceRequestById(id) {
-    const raw = await odooRequest("maintenance.request", "search_read", [[["id", "=", id]]], { fields: MAINTENANCE_REQUEST_FIELDS });
-    return raw?.length ? raw[0] : null;
-}
-export async function updateMaintenanceRequestRecord(id, input) {
-    const values = {};
-    if (input.stageId !== undefined)
-        values.stage_id = input.stageId;
-    if (input.scheduleDate)
-        values.schedule_date = input.scheduleDate;
-    if (input.priority)
-        values.priority = input.priority;
-    if (input.closeDate)
-        values.close_date = input.closeDate;
-    // Many2many replace: command 6 replaces the whole set
-    if (input.technicianIds) {
-        values.user_ids = [[6, 0, input.technicianIds]];
-    }
-    if (Object.keys(values).length === 0)
-        return;
-    await odooRequest("maintenance.request", "write", [[id], values]);
-}
-// ─── Delete a request ─────────────────────────────────────────────────────────
-export async function deleteMaintenanceRequestRecord(id) {
-    await odooRequest("maintenance.request", "unlink", [[id]]);
-}
-export async function getMaintenanceRequests() {
-    const [rawRequests, stageMap] = await Promise.all([
-        fetchRequests(),
-        fetchStages(),
-    ]);
-    const equipmentIds = uniqueIds(rawRequests.map((r) => r.equipment_id?.[0]));
-    const userIds = uniqueIds(rawRequests.flatMap((r) => r.user_ids ?? []));
-    const [equipmentMap, usersMap] = await Promise.all([
-        fetchEquipments(equipmentIds),
-        fetchUsers(userIds),
-    ]);
-    const requests = rawRequests.map((r) => mapRequest(r, stageMap, equipmentMap, usersMap));
+function transformRequest(r, equipmentMap) {
+    const eq = equipmentMap.get(r.equipmentId) ?? null;
     return {
-        requests,
-        stages: [...stageMap.values()],
+        id: r.id,
+        name: r.name,
+        description: r.description ?? null,
+        priority: r.priority,
+        state: r.status,
+        maintenanceType: "Corrective", // no field backing this yet — every request is corrective for now
+        stage: STAGE_MAP[r.status],
+        equipment: eq
+            ? {
+                id: eq.id,
+                name: eq.name,
+                location: eq.usedInLocation ?? null,
+                assetCode: eq.assetCode ?? null,
+                serialNo: eq.serialNumber ?? null, // note: Equipment schema field is serialNumber, not serialNo
+                model: eq.model ?? null,
+                restaurant: eq.restaurant ?? null,
+            }
+            : null,
+        category: eq?.category ? { id: 0, name: eq.category } : null,
+        maintenanceTeam: eq?.maintenanceTeam ? { id: 0, name: eq.maintenanceTeam } : null,
+        technicians: r.technicians ?? [],
+        createdBy: r.reportedBy ? { id: 0, name: r.reportedBy } : null,
+        createDate: r.createdAt ? new Date(r.createdAt).toISOString() : null,
+        scheduleDate: r.scheduleDate ? new Date(r.scheduleDate).toISOString() : null,
+        scheduleEnd: r.closeDate ? new Date(r.closeDate).toISOString() : null, // reuse closeDate as an estimate
+        closeDate: r.closeDate ? new Date(r.closeDate).toISOString() : null,
+        duration: computeDuration(r.scheduleDate, r.closeDate),
+        isRecurring: false, // no recurrence support yet
+        color: 0,
+    };
+}
+async function buildEquipmentMap(equipmentIds) {
+    const uniqueIds = [...new Set(equipmentIds)];
+    const items = await EquipmentModel.find({ id: { $in: uniqueIds } }).lean();
+    return new Map(items.map((eq) => [eq.id, eq]));
+}
+// ─── List / detail ────────────────────────────────────────────────────────────
+export async function getMaintenanceRequests() {
+    const requests = await MaintenanceRequestModel.find().sort({ createdAt: -1 }).lean();
+    const equipmentMap = await buildEquipmentMap(requests.map((r) => r.equipmentId));
+    return {
+        requests: requests.map((r) => transformRequest(r, equipmentMap)),
+        stages: ALL_STAGES,
         total: requests.length,
     };
 }
+export async function getMaintenanceRequestById(id) {
+    const r = await MaintenanceRequestModel.findOne({ id }).lean();
+    if (!r)
+        return null;
+    const equipmentMap = await buildEquipmentMap([r.equipmentId]);
+    return transformRequest(r, equipmentMap);
+}
+// ─── Update / delete ────────────────────────────────────────────────────────
+export async function updateMaintenanceRequestRecord(id, data) {
+    const update = { ...data };
+    if (data.status === "done") {
+        update.closeDate = new Date();
+    }
+    else if (data.status) {
+        update.closeDate = null;
+    }
+    return MaintenanceRequestModel.findOneAndUpdate({ id }, { $set: update }, { new: true });
+}
+export async function deleteMaintenanceRequestRecord(id) {
+    return MaintenanceRequestModel.findOneAndDelete({ id });
+}
+// ─── Messages / comments ───────────────────────────────────────────────────────
 export async function getRequestMessages(requestId) {
-    const raw = await fetchMessages(requestId);
-    return raw
-        .map(mapMessage)
-        .filter((m) => m.body.length > 0);
+    const messages = await MaintenanceMessageModel.find({ requestId }).sort({ createdAt: 1 }).lean();
+    return messages.map((m) => ({
+        id: m._id.toString().length ? Number(m.id ?? 0) : 0,
+        type: "comment",
+        author: { id: 0, name: m.authorName },
+        body: m.body,
+        date: new Date(m.createdAt).toISOString(),
+        isInternal: m.isInternal,
+        parentId: null,
+    }));
 }
 export async function postRequestComment(requestId, input) {
-    const { body, authorName, isInternal = false } = input;
-    const messageId = await odooRequest("maintenance.request", "message_post", [[requestId]], {
-        body: `<p>${body}</p>`,
-        message_type: "comment",
-        subtype_xmlid: isInternal ? "mail.mt_note" : "mail.mt_comment",
+    const message = await MaintenanceMessageModel.create({
+        requestId,
+        body: input.body,
+        authorName: input.authorName,
+        isInternal: input.isInternal ?? false,
     });
     return {
-        id: messageId,
-        body,
-        authorName,
-        date: new Date().toISOString(),
-        isInternal,
+        id: message._id.toString(),
+        body: message.body,
+        authorName: message.authorName,
+        date: new Date(message.createdAt).toISOString(),
+        isInternal: message.isInternal,
     };
+}
+export async function assignTechniciansService(requestId, technicians) {
+    const request = await MaintenanceRequestModel.findOneAndUpdate({ id: requestId }, {
+        $set: {
+            technicians,
+            status: "under_repair",
+            closeDate: null,
+        },
+    }, { new: true });
+    if (!request)
+        return null;
+    const equipment = await EquipmentModel.findOne({ id: request.equipmentId }).lean();
+    // Send emails and WAIT for them — no more fire-and-forget
+    for (const tech of technicians) {
+        try {
+            await sendMail({
+                email: tech.email,
+                subject: `🔧 New Repair Assigned: ${equipment?.name ?? "Equipment"} (#${request.id})`,
+                template: "technician-assignment.ejs",
+                data: {
+                    technicianName: tech.name,
+                    requestId: request.id,
+                    requestName: request.name,
+                    priority: request.priority,
+                    description: request.description,
+                    reportedBy: request.reportedBy,
+                    reportedByEmail: request.reportedByEmail,
+                    equipment: {
+                        name: equipment?.name ?? "—",
+                        assetCode: equipment?.assetCode ?? "—",
+                        location: equipment?.usedInLocation ?? "—",
+                        restaurant: equipment?.restaurant ?? "—",
+                        model: equipment?.model ?? "—",
+                        serialNumber: equipment?.serialNumber ?? "—",
+                        category: equipment?.category ?? "—",
+                        vendor: equipment?.vendor ?? "—",
+                    },
+                },
+            });
+            console.log(`✅ Email successfully sent to technician: ${tech.email}`);
+        }
+        catch (err) {
+            console.error(`❌ Failed to send email to technician ${tech.email}:`, err.message);
+            // Stop everything and throw — this will bubble up to the controller's catch block
+            throw new Error(`Failed to send email to technician "${tech.name}" (${tech.email}): ${err.message}`);
+        }
+    }
+    const equipmentMap = await buildEquipmentMap([request.equipmentId]);
+    return transformRequest(request, equipmentMap);
 }

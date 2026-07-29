@@ -18,7 +18,10 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 // CORS
 app.use(cors({
-    origin: "http://localhost:8000",
+    origin: [
+        "http://localhost:8000",
+        "https://maintenance-dashboard-lime.vercel.app"
+    ],
     credentials: true,
 }));
 // Rate limiter — BEFORE routes

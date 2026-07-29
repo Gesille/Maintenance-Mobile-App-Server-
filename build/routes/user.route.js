@@ -1,5 +1,5 @@
 import express from "express";
-import { activateUser, deleteUser, getAllUsers, getUserInfo, loginUser, logoutUser, refreshTokenMiddleware, registrationUser, socialAuth, updateAccessToken, updatePassword, updateProfilePicture, updateUserInfo, updateUserRole } from "../controllers/user.controller.js";
+import { activateUser, createUserByManager, deleteUser, getAllUsers, getTechnicians, getUserInfo, loginUser, logoutUser, refreshTokenMiddleware, registrationUser, socialAuth, updateAccessToken, updatePassword, updateProfilePicture, updateUserInfo, updateUserRole } from "../controllers/user.controller.js";
 import { authorizeRoles, isAuthenticated } from "../middleware/auth.js";
 const userRouter = express.Router();
 userRouter.post('/registration', registrationUser);
@@ -15,4 +15,6 @@ userRouter.put('/update-user-avatar', refreshTokenMiddleware, isAuthenticated, u
 userRouter.get('/get-users', refreshTokenMiddleware, isAuthenticated, authorizeRoles("manager"), getAllUsers);
 userRouter.put('/update-user', isAuthenticated, authorizeRoles("manager"), updateUserRole);
 userRouter.delete('/delete-user/:id', refreshTokenMiddleware, isAuthenticated, authorizeRoles("manager"), deleteUser);
+userRouter.get("/technicians", refreshTokenMiddleware, isAuthenticated, authorizeRoles("manager"), getTechnicians);
+userRouter.post('/create-user', refreshTokenMiddleware, isAuthenticated, authorizeRoles("manager"), createUserByManager);
 export default userRouter;
