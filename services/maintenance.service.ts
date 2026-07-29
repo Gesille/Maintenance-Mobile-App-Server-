@@ -227,7 +227,7 @@ export async function assignTechniciansService(
       await sendMail({
         email: tech.email,
         subject: `🔧 New Repair Assigned: ${equipment?.name ?? "Equipment"} (#${request.id})`,
-        template: "tech.ejs",
+        template: "technician-assignment.ejs",
         data: {
           technicianName: tech.name,
           requestId: request.id,
