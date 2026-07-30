@@ -14,7 +14,7 @@ maintenanceRouter.delete("/delete-request/:id", isAuthenticated,authorizeRoles("
 maintenanceRouter.get("/get-request-messages/:id", isAuthenticated, getMaintenanceRequestMessages);
 maintenanceRouter.post("/post-request-message/:id", isAuthenticated, postMaintenanceRequestComment);
 maintenanceRouter.post(
-  "/create-request",
+  "/create-request-manager",
   isAuthenticated,
   authorizeRoles("manager"),
   uploadMaintenanceMedia.array("files", 10),
