@@ -6,31 +6,31 @@ import { getReportingSummaryController, getCreatedVsCompletedController, getReac
 const reportingRouter = Router();
 
 reportingRouter.get(
-  "reporting/summary",
+  "/reporting/summary",
   isAuthenticated,
   authorizeRoles("manager"),
   getReportingSummaryController,
 );
 reportingRouter.get(
-  "reporting/created-vs-completed",
+  "/reporting/created-vs-completed",
   isAuthenticated,
   authorizeRoles("manager"),
   getCreatedVsCompletedController,
 );
 reportingRouter.get(
-  "reporting/reactive-vs-repeatable",
+  "/reporting/reactive-vs-repeatable",
   isAuthenticated,
   authorizeRoles("manager"),
   getReactiveVsRepeatableController,
 );
 reportingRouter.get(
-  "reporting/status-breakdown",
+  "/reporting/status-breakdown",
   isAuthenticated,
   authorizeRoles("manager"),
   getStatusBreakdownController,
 );
 reportingRouter.get(
-  "reporting/priority-breakdown",
+  "/reporting/priority-breakdown",
   isAuthenticated,
   authorizeRoles("manager"),
   getPriorityBreakdownController,
