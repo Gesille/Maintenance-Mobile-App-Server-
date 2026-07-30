@@ -9,6 +9,7 @@ import userRouter from "./routes/user.route.js";
 import equipmentRouter from "./routes/equipment.route.js";
 import maintenanceRouter from "./routes/maintenance.route.js";
 import supportTicketRouter from "./routes/support_ticket.route.js";
+import reportingRouter from "./routes/Reporting.route.js";
 
 dotenv.config();
 
@@ -45,6 +46,7 @@ app.use("/api/v1", userRouter);
 app.use("/api/v1", equipmentRouter);
 app.use("/api/v1", maintenanceRouter);
 app.use("/api/v1", supportTicketRouter);
+app.use("/api/v1", reportingRouter);
 
 // Test route
 app.get("/test", (req: Request, res: Response, next: NextFunction) => {
