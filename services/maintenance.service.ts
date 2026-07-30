@@ -5,6 +5,8 @@ import MaintenanceRequestModel, {
 } from "../models/Maintenancerequest.model.js";
 import MaintenanceMessageModel from "../models/MaintenanceMessage.model.js";
 import sendMail from "../utils/sendMail.js";
+import { handleMediaUploads } from "./equipment.service.js";
+import { PRIORITY_MAP } from "../@types/equipment.constants.js";
 
 // ─── Frontend-facing shapes (mirrors Maintenanceapi.ts on the frontend) ──────
 
@@ -259,6 +261,88 @@ export async function assignTechniciansService(
       console.error(`❌ Failed to send email to technician ${tech.email}:`, err.message);
       // Stop everything and throw — this will bubble up to the controller's catch block
       throw new Error(`Failed to send email to technician "${tech.name}" (${tech.email}): ${err.message}`);
+    }
+  }
+
+  const equipmentMap = await buildEquipmentMap([request.equipmentId]);
+  return transformRequest(request as any, equipmentMap);
+}
+
+export interface CreateManagerRequestInput {
+  equipmentId: number;
+  priority: string;
+  description: string;
+  reportedBy: string;
+  reportedByEmail: string;
+  technicians?: { id: string; name: string; email: string }[];
+  files?: Express.Multer.File[];
+  jsonMedia?: { url: string; type: "image" | "video" }[];
+}
+
+// ─── Manager creates a work order directly (with optional technician assignment) ─
+
+export async function createManagerMaintenanceRequest(input: CreateManagerRequestInput) {
+  const { equipmentId, priority, description, reportedBy, reportedByEmail, technicians, files, jsonMedia } =
+    input;
+
+  const eq = await EquipmentModel.findOne({ id: equipmentId, active: true }).lean();
+  if (!eq) return null;
+
+  const media = await handleMediaUploads(files, jsonMedia);
+  const requestName = `[${reportedBy}] Issue with ${eq.name}`;
+  const hasTechnicians = !!technicians?.length;
+
+  const request = await MaintenanceRequestModel.create({
+    name: requestName,
+    equipmentId: eq.id,
+    priority: PRIORITY_MAP[priority] ?? priority,
+    description,
+    reportedBy,
+    reportedByEmail,
+    media,
+    technicians: technicians ?? [],
+    status: hasTechnicians ? "under_repair" : "new",
+  });
+
+  // Technicians assigned right at creation → notify them immediately,
+  // same email + media payload as assignTechniciansService
+  if (hasTechnicians) {
+    const images = media.filter((m) => m.type === "image");
+    const videos = media.filter((m) => m.type === "video");
+
+    for (const tech of technicians!) {
+      try {
+        await sendMail({
+          email: tech.email,
+          subject: `🔧 New Repair Assigned: ${eq.name} (#${request.id})`,
+          template: "technician-assignment.ejs",
+          data: {
+            technicianName: tech.name,
+            requestId: request.id,
+            requestName: request.name,
+            priority: request.priority,
+            description: request.description,
+            reportedBy: request.reportedBy,
+            reportedByEmail: request.reportedByEmail,
+            equipment: {
+              name: eq.name ?? "—",
+              assetCode: eq.assetCode ?? "—",
+              location: eq.usedInLocation ?? "—",
+              restaurant: eq.restaurant ?? "—",
+              model: eq.model ?? "—",
+              serialNumber: eq.serialNumber ?? "—",
+              category: eq.category ?? "—",
+              vendor: eq.vendor ?? "—",
+            },
+            images,
+            videos,
+          },
+        });
+        console.log(`✅ Email successfully sent to technician: ${tech.email}`);
+      } catch (err: any) {
+        console.error(`❌ Failed to send email to technician ${tech.email}:`, err.message);
+        throw new Error(`Failed to send email to technician "${tech.name}" (${tech.email}): ${err.message}`);
+      }
     }
   }
 

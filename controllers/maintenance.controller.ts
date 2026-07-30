@@ -8,6 +8,7 @@ import {
   getRequestMessages,
   postRequestComment,
   assignTechniciansService,
+  createManagerMaintenanceRequest,
 } from "../services/maintenance.service.js";
 import { MaintenanceStatus, VALID_STATUSES } from "../models/Maintenancerequest.model.js";
 
@@ -204,3 +205,58 @@ export const postMaintenanceRequestComment = async (
   }
 };
 
+
+// Manager creates a work order directly
+
+export const createMaintenanceRequestManual = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const { equipmentId, priority, description, reportedBy, reportedByEmail } = req.body;
+
+    if (!equipmentId || !priority || !description) {
+      return res.status(400).json({
+        success: false,
+        message: "equipmentId, priority and description are required",
+      });
+    }
+
+    // technicians arrives as a JSON string when sent via multipart/form-data
+    let technicians: { id: string; name: string; email: string }[] = [];
+    if (req.body.technicians) {
+      technicians =
+        typeof req.body.technicians === "string"
+          ? JSON.parse(req.body.technicians)
+          : req.body.technicians;
+    }
+
+    const manager = req.user as any;
+    const files = req.files as Express.Multer.File[] | undefined;
+    const jsonMedia = req.body.media as { url: string; type: "image" | "video" }[] | undefined;
+
+    const data = await createManagerMaintenanceRequest({
+      equipmentId: Number(equipmentId),
+      priority,
+      description,
+      reportedBy: reportedBy?.trim() || manager?.name || "Manager",
+      reportedByEmail: reportedByEmail?.trim() || manager?.email || "",
+      technicians,
+      files,
+      jsonMedia,
+    });
+
+    if (!data) {
+      return res.status(404).json({ success: false, message: "Equipment not found" });
+    }
+
+    res.status(201).json({
+      success: true,
+      message: "Work order created successfully",
+      data,
+    });
+  } catch (error: any) {
+    next(new ErrorHandler(error.message ?? "Something went wrong", 400));
+  }
+};

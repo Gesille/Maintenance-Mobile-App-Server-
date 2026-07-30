@@ -189,7 +189,7 @@ export async function buildSingleQRPdf(
 
 // ─── Media upload ─────────────────────────────────────────────────────────────
 
-async function handleMediaUploads(
+export async function handleMediaUploads(
   files?: Express.Multer.File[],
   jsonMedia?: { url: string; type: "image" | "video" }[],
 ): Promise<UploadedMedia[]> {
@@ -405,3 +405,6 @@ export async function generateMissingQRsService() {
   }
   return results;
 }
+
+
+
