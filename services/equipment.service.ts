@@ -261,6 +261,7 @@ export async function createMaintenanceRequest(input: CreateRequestInput) {
     reportedByEmail,
     media,
     status: "new",
+    source: "reactive",
   });
 
   const responseData = {

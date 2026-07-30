@@ -318,6 +318,7 @@ export async function createManagerMaintenanceRequest(input: CreateManagerReques
     media,
     technicians: technicians ?? [],
     status: hasTechnicians ? "under_repair" : "new",
+    source: "repeatable", 
   });
 
   // Technicians assigned right at creation → notify them immediately,

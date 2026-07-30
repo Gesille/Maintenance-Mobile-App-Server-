@@ -24,6 +24,7 @@ export interface IMaintenanceRequest extends Document {
   reportedBy: string;
   reportedByEmail: string;
   status: MaintenanceStatus;
+  source: "reactive" | "repeatable";  
   technicians: ITechnicianRef[];
   scheduleDate: Date | null;
   closeDate: Date | null;
@@ -89,6 +90,12 @@ const maintenanceRequestSchema = new Schema<IMaintenanceRequest>(
       type: String,
       enum: ["new", "under_repair", "done", "cancel"],
       default: "new",
+      index: true,
+    },
+    source: {                       
+      type: String,
+      enum: ["reactive", "repeatable"],
+      default: "reactive",
       index: true,
     },
     technicians: { type: [technicianSchema], default: [] },
