@@ -147,10 +147,13 @@ export async function getMaintenanceRequestById(id: number) {
 }
 
 // ─── Update / delete ────────────────────────────────────────────────────────
-
 export async function updateMaintenanceRequestRecord(
   id: number,
-  data: { status?: MaintenanceStatus; technicians?: { id: string; name: string; email: string }[] },
+  data: {
+    status?: MaintenanceStatus;
+    technicians?: { id: string; name: string; email: string }[];
+    scheduleDate?: Date | null; // NEW
+  },
 ) {
   const update: Record<string, any> = { ...data };
 
@@ -161,6 +164,19 @@ export async function updateMaintenanceRequestRecord(
   }
 
   return MaintenanceRequestModel.findOneAndUpdate({ id }, { $set: update }, { new: true });
+}
+
+// NEW — dedicated schedule setter, reused by the calendar's click-to-schedule
+export async function setMaintenanceScheduleDate(id: number, scheduleDate: Date) {
+  const updated = await MaintenanceRequestModel.findOneAndUpdate(
+    { id },
+    { $set: { scheduleDate } },
+    { new: true },
+  );
+  if (!updated) return null;
+
+  const equipmentMap = await buildEquipmentMap([updated.equipmentId]);
+  return transformRequest(updated as any, equipmentMap);
 }
 
 export async function deleteMaintenanceRequestRecord(id: number) {

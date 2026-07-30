@@ -9,6 +9,7 @@ import {
   postRequestComment,
   assignTechniciansService,
   createManagerMaintenanceRequest,
+  setMaintenanceScheduleDate,
 } from "../services/maintenance.service.js";
 import { MaintenanceStatus, VALID_STATUSES } from "../models/Maintenancerequest.model.js";
 
@@ -81,7 +82,34 @@ export const updateMaintenanceRequestStatus = async (
     next(new ErrorHandler(error.message ?? "Something went wrong", 400));
   }
 };
+export const updateMaintenanceRequestSchedule = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const id = parseInt(req.params.id as string);
+    if (isNaN(id)) {
+      return res.status(400).json({ success: false, message: "Invalid ID" });
+    }
 
+    const { scheduleDate } = req.body as { scheduleDate: string };
+    const parsed = new Date(scheduleDate);
+
+    if (!scheduleDate || isNaN(parsed.getTime())) {
+      return res.status(400).json({ success: false, message: "Valid scheduleDate is required" });
+    }
+
+    const updated = await setMaintenanceScheduleDate(id, parsed);
+    if (!updated) {
+      return res.status(404).json({ success: false, message: "Request not found" });
+    }
+
+    res.status(200).json({ success: true, data: updated });
+  } catch (error: any) {
+    next(new ErrorHandler(error.message ?? "Something went wrong", 400));
+  }
+};
 // ─── Assign technicians ────────────────────────────────────────────────────────
 
 export const assignTechnicians = async (
