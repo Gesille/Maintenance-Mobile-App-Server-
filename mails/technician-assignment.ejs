@@ -14,6 +14,12 @@
     td.label { color:#94A3B8; width:140px; font-weight:600; text-transform:uppercase; font-size:11px; letter-spacing:.05em; }
     td.value { color:#0F172A; font-weight:500; }
     .desc-box { background:#F8FAFF; border:1px solid #E8EAFF; border-radius:10px; padding:14px 16px; margin-top:16px; white-space:pre-wrap; }
+    .media-section { margin-top:20px; }
+    .media-title { font-weight:600; color:#0F172A; margin-bottom:10px; font-size:14px; }
+    .media-grid { border-collapse: separate; border-spacing: 8px 0; margin-top:0; width:auto; }
+    .media-grid td { border-bottom:none; padding:0; }
+    .media-thumb { display:block; width:110px; height:110px; object-fit:cover; border-radius:8px; border:1px solid #E8EAFF; }
+    .video-link { display:inline-block; background:#EEF2FF; color:#4F46E5; text-decoration:none; font-weight:600; font-size:12px; padding:8px 14px; border-radius:8px; margin:4px 8px 4px 0; border:1px solid #E0E7FF; }
     .footer { padding:16px 24px; font-size:11px; color:#94A3B8; text-align:center; }
   </style>
 </head>
@@ -41,6 +47,32 @@
 
       <p style="margin-top:18px; font-weight:600; color:#0F172A;">Issue Description</p>
       <div class="desc-box"><%= description %></div>
+
+      <% if (images && images.length) { %>
+        <div class="media-section">
+          <p class="media-title">Attached Photos (<%= images.length %>)</p>
+          <table class="media-grid">
+            <tr>
+              <% images.forEach(function(img) { %>
+                <td>
+                  <a href="<%= img.url %>" target="_blank">
+                    <img src="<%= img.url %>" class="media-thumb" alt="Issue photo" />
+                  </a>
+                </td>
+              <% }); %>
+            </tr>
+          </table>
+        </div>
+      <% } %>
+
+      <% if (videos && videos.length) { %>
+        <div class="media-section">
+          <p class="media-title">Attached Videos (<%= videos.length %>)</p>
+          <% videos.forEach(function(vid, i) { %>
+            <a href="<%= vid.url %>" target="_blank" class="video-link">▶ Video <%= i + 1 %></a>
+          <% }); %>
+        </div>
+      <% } %>
 
       <p style="margin-top:20px;">Please log in to MaintenancePro to update the status once you begin and complete the repair.</p>
     </div>

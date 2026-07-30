@@ -222,7 +222,8 @@ export async function assignTechniciansService(
   if (!request) return null;
 
   const equipment = await EquipmentModel.findOne({ id: request.equipmentId }).lean();
-
+ const images = (request.media ?? []).filter((m) => m.type === "image");
+  const videos = (request.media ?? []).filter((m) => m.type === "video");
   // Send emails and WAIT for them — no more fire-and-forget
   for (const tech of technicians) {
     try {
@@ -248,6 +249,8 @@ export async function assignTechniciansService(
             category: equipment?.category ?? "—",
             vendor: equipment?.vendor ?? "—",
           },
+           images, 
+            videos, 
         },
       });
 
