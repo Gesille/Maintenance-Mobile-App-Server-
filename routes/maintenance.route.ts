@@ -20,5 +20,5 @@ maintenanceRouter.post(
   uploadMaintenanceMedia.array("files", 10),
   createMaintenanceRequestManual,
 );
-maintenanceRouter.patch("/maintenance/:id/schedule", isAuthenticated, updateMaintenanceRequestSchedule);
+maintenanceRouter.patch("/maintenance-schedule/:id", isAuthenticated, updateMaintenanceRequestSchedule);//
 export default maintenanceRouter;
