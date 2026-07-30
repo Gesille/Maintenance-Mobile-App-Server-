@@ -43,6 +43,7 @@ export interface MaintenanceRequestDTO {
   duration: number;
   isRecurring: boolean;
   color: number;
+  media: { url: string; type: "image" | "video" }[];
 }
 
 export interface MaintenanceMessageDTO {
@@ -112,6 +113,7 @@ function transformRequest(
     duration: computeDuration(r.scheduleDate, r.closeDate),
     isRecurring: false, // no recurrence support yet
     color: 0,
+    media: (r.media ?? []).map((m) => ({ url: m.url, type: m.type })),
   };
 }
 
