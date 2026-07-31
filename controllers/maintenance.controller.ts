@@ -307,12 +307,20 @@ export const submitRequestChecklist = async (req: Request, res: Response, next: 
     const id = parseInt(req.params.id as string);
     if (isNaN(id)) return res.status(400).json({ success: false, message: "Invalid ID" });
 
-    const { items, result, signatureBase64 } = req.body as {
-      items: { id: string; checked: boolean }[];
-      result: "pass" | "flag" | "fail";
-      signatureBase64: string;
-    };
-
+   const {
+  items,
+  result,
+  signatureBase64,
+  partsUsed,
+} = req.body as {
+  items: { id: string; checked: boolean }[];
+  result: "pass" | "flag" | "fail";
+  signatureBase64: string;
+  partsUsed?: {
+    partId: number;
+    quantity: number;
+  }[];
+};
     if (!result || !signatureBase64) {
       return res.status(400).json({ success: false, message: "result and signatureBase64 are required" });
     }
@@ -324,6 +332,7 @@ export const submitRequestChecklist = async (req: Request, res: Response, next: 
       items: items ?? [],
       result,
       signatureBase64,
+      partsUsed,
     });
 
     if (!updated) return res.status(404).json({ success: false, message: "Request not found" });

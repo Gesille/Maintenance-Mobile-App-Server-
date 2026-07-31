@@ -50,9 +50,10 @@ export interface IMaintenanceRequest extends Document {
   scheduleDate: Date | null;
   closeDate: Date | null;
   media: IMaintenanceMedia[];
-  checklist: IChecklist;               // ← this was missing
+  checklist: IChecklist;               
   createdAt: Date;
   updatedAt: Date;
+   partsUsed: IUsedPart[];
 }
 
 // ─── Auto-increment counter ────────────────────────────────────────────────
@@ -60,7 +61,11 @@ interface ICounter extends Omit<Document, "_id"> {
   _id: string;
   seq: number;
 }
-
+export interface IUsedPart {
+  partId: number;
+  partName: string | null;
+  quantity: number;
+}
 const counterSchema = new Schema<ICounter>({
   _id: { type: String, required: true },
   seq: { type: Number, default: 0 },
@@ -117,7 +122,23 @@ const checklistSchema = new Schema<IChecklist>(
   },
   { _id: false },
 );
-
+const usedPartSchema = new Schema<IUsedPart>(
+  {
+    partId: {
+      type: Number,
+      required: true,
+    },
+    partName: {
+      type: String,
+      default: null,
+    },
+    quantity: {
+      type: Number,
+      required: true,
+    },
+  },
+  { _id: false }
+);
 const maintenanceRequestSchema = new Schema<IMaintenanceRequest>(
   {
     id: { type: Number, unique: true, index: true },
@@ -143,7 +164,12 @@ const maintenanceRequestSchema = new Schema<IMaintenanceRequest>(
     scheduleDate: { type: Date, default: null },
     closeDate: { type: Date, default: null },
     media: { type: [mediaSchema], default: [] },
-    checklist: { type: checklistSchema, default: () => ({ items: DEFAULT_CHECKLIST_ITEMS }) }, // ← this was missing
+    checklist: { type: checklistSchema, default: () => ({ items: DEFAULT_CHECKLIST_ITEMS }) }, 
+     partsUsed: {
+   type: [usedPartSchema],
+   default: [],
+ },
+    
   },
   { timestamps: true },
 );
