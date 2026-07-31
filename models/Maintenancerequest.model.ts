@@ -10,10 +10,31 @@ export interface IMaintenanceMedia {
 }
 
 export interface ITechnicianRef {
-  id: string;      
+  id: string;
   name: string;
   email: string;
 }
+
+// ─── Checklist types ──────────────────────────────────────────────────────
+export interface IChecklistItem {
+  id: string;
+  label: string;
+  checked: boolean;
+}
+
+export interface IChecklist {
+  items: IChecklistItem[];
+  result: "pass" | "flag" | "fail" | null;
+  signatureUrl: string | null;
+  signaturePublicId: string | null;
+  completedAt: Date | null;
+  completedBy: string | null;
+}
+
+export const DEFAULT_CHECKLIST_ITEMS: IChecklistItem[] = [
+  { id: "c1", label: "Inspect surroundings for leaks, sounds, damage", checked: false },
+  { id: "c2", label: "Isolate and lockout/tagout compressor", checked: false },
+];
 
 export interface IMaintenanceRequest extends Document {
   id: number;
@@ -24,19 +45,17 @@ export interface IMaintenanceRequest extends Document {
   reportedBy: string;
   reportedByEmail: string;
   status: MaintenanceStatus;
-  source: "reactive" | "repeatable";  
+  source: "reactive" | "repeatable";
   technicians: ITechnicianRef[];
   scheduleDate: Date | null;
   closeDate: Date | null;
   media: IMaintenanceMedia[];
+  checklist: IChecklist;               // ← this was missing
   createdAt: Date;
   updatedAt: Date;
 }
 
 // ─── Auto-increment counter ────────────────────────────────────────────────
-// Keeps `id` a plain sequential number (nice for QR PDFs, asset labels, etc.)
-// instead of forcing everything downstream onto ObjectId strings.
-
 interface ICounter extends Omit<Document, "_id"> {
   _id: string;
   seq: number;
@@ -77,6 +96,28 @@ const technicianSchema = new Schema<ITechnicianRef>(
   { _id: false },
 );
 
+// ─── Checklist sub-schemas ─────────────────────────────────────────────────
+const checklistItemSchema = new Schema<IChecklistItem>(
+  {
+    id: { type: String, required: true },
+    label: { type: String, required: true },
+    checked: { type: Boolean, default: false },
+  },
+  { _id: false },
+);
+
+const checklistSchema = new Schema<IChecklist>(
+  {
+    items: { type: [checklistItemSchema], default: () => DEFAULT_CHECKLIST_ITEMS },
+    result: { type: String, enum: ["pass", "flag", "fail", null], default: null },
+    signatureUrl: { type: String, default: null },
+    signaturePublicId: { type: String, default: null },
+    completedAt: { type: Date, default: null },
+    completedBy: { type: String, default: null },
+  },
+  { _id: false },
+);
+
 const maintenanceRequestSchema = new Schema<IMaintenanceRequest>(
   {
     id: { type: Number, unique: true, index: true },
@@ -92,7 +133,7 @@ const maintenanceRequestSchema = new Schema<IMaintenanceRequest>(
       default: "new",
       index: true,
     },
-    source: {                       
+    source: {
       type: String,
       enum: ["reactive", "repeatable"],
       default: "reactive",
@@ -102,6 +143,7 @@ const maintenanceRequestSchema = new Schema<IMaintenanceRequest>(
     scheduleDate: { type: Date, default: null },
     closeDate: { type: Date, default: null },
     media: { type: [mediaSchema], default: [] },
+    checklist: { type: checklistSchema, default: () => ({ items: DEFAULT_CHECKLIST_ITEMS }) }, // ← this was missing
   },
   { timestamps: true },
 );

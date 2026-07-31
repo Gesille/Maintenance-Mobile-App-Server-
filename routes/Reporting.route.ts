@@ -1,6 +1,19 @@
 import { Router } from "express";
 import { authorizeRoles, isAuthenticated } from "../middleware/auth.js";
-import { getReportingSummaryController, getCreatedVsCompletedController, getReactiveVsRepeatableController, getStatusBreakdownController, getPriorityBreakdownController } from "../controllers/Reporting.controller.js";
+import {
+  getReportingSummaryController,
+  getCreatedVsCompletedController,
+  getReactiveVsRepeatableController,
+  getStatusBreakdownController,
+  getPriorityBreakdownController,
+  getAverageResolutionTimeController,
+  getTechnicianWorkloadController,
+  getEquipmentReliabilityController,
+  getOverdueRequestsController,
+  getLocationBreakdownController,
+  getCategoryBreakdownController,
+  getCostRollupController,
+} from "../controllers/Reporting.controller.js";
 
 
 const reportingRouter = Router();
@@ -34,6 +47,48 @@ reportingRouter.get(
   isAuthenticated,
   authorizeRoles("manager"),
   getPriorityBreakdownController,
+);
+reportingRouter.get(
+  "/reporting/resolution-time",
+  isAuthenticated,
+  authorizeRoles("manager"),
+  getAverageResolutionTimeController,
+);
+reportingRouter.get(
+  "/reporting/technician-workload",
+  isAuthenticated,
+  authorizeRoles("manager"),
+  getTechnicianWorkloadController,
+);
+reportingRouter.get(
+  "/reporting/equipment-reliability",
+  isAuthenticated,
+  authorizeRoles("manager"),
+  getEquipmentReliabilityController,
+);
+reportingRouter.get(
+  "/reporting/overdue",
+  isAuthenticated,
+  authorizeRoles("manager"),
+  getOverdueRequestsController,
+);
+reportingRouter.get(
+  "/reporting/location-breakdown",
+  isAuthenticated,
+  authorizeRoles("manager"),
+  getLocationBreakdownController,
+);
+reportingRouter.get(
+  "/reporting/category-breakdown",
+  isAuthenticated,
+  authorizeRoles("manager"),
+  getCategoryBreakdownController,
+);
+reportingRouter.get(
+  "/reporting/cost-rollup",
+  isAuthenticated,
+  authorizeRoles("manager"),
+  getCostRollupController,
 );
 
 export default reportingRouter;

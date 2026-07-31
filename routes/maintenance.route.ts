@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { authorizeRoles, isAuthenticated } from "../middleware/auth.js";
-import { assignTechnicians, createMaintenanceRequestManual, deleteMaintenanceRequest, getAllMaintenanceRequests, getMaintenanceRequestDetail, getMaintenanceRequestMessages, postMaintenanceRequestComment, updateMaintenanceRequestSchedule, updateMaintenanceRequestStatus } from "../controllers/maintenance.controller.js";
+import { assignTechnicians, createMaintenanceRequestManual, deleteMaintenanceRequest, getAllMaintenanceRequests, getMaintenanceRequestDetail, getMaintenanceRequestMessages, getMyAssignedRequests, postMaintenanceRequestComment, submitRequestChecklist, updateMaintenanceRequestSchedule, updateMaintenanceRequestStatus } from "../controllers/maintenance.controller.js";
 import { uploadMaintenanceMedia } from "../middleware/upload.js";
 
 
@@ -20,5 +20,7 @@ maintenanceRouter.post(
   uploadMaintenanceMedia.array("files", 10),
   createMaintenanceRequestManual,
 );
-maintenanceRouter.patch("/maintenance-schedule/:id", isAuthenticated, updateMaintenanceRequestSchedule);//
+maintenanceRouter.patch("/maintenance-schedule/:id", isAuthenticated, updateMaintenanceRequestSchedule);
+maintenanceRouter.get("/get-my-requests", isAuthenticated, authorizeRoles("technician"),getMyAssignedRequests);
+maintenanceRouter.patch("/submit-checklist/:id", isAuthenticated, authorizeRoles("technician"),submitRequestChecklist);
 export default maintenanceRouter;

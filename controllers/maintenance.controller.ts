@@ -10,6 +10,8 @@ import {
   assignTechniciansService,
   createManagerMaintenanceRequest,
   setMaintenanceScheduleDate,
+  submitRequestChecklistService,
+  getMyMaintenanceRequests,
 } from "../services/maintenance.service.js";
 import { MaintenanceStatus, VALID_STATUSES } from "../models/Maintenancerequest.model.js";
 
@@ -284,6 +286,49 @@ export const createMaintenanceRequestManual = async (
       message: "Work order created successfully",
       data,
     });
+  } catch (error: any) {
+    next(new ErrorHandler(error.message ?? "Something went wrong", 400));
+  }
+};
+
+
+export const getMyAssignedRequests = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const technicianId = (req.user as any)?._id?.toString();
+    const data = await getMyMaintenanceRequests(technicianId);
+    res.status(200).json({ success: true, data });
+  } catch (error: any) {
+    next(new ErrorHandler(error.message ?? "Something went wrong", 400));
+  }
+};
+
+export const submitRequestChecklist = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const id = parseInt(req.params.id as string);
+    if (isNaN(id)) return res.status(400).json({ success: false, message: "Invalid ID" });
+
+    const { items, result, signatureBase64 } = req.body as {
+      items: { id: string; checked: boolean }[];
+      result: "pass" | "flag" | "fail";
+      signatureBase64: string;
+    };
+
+    if (!result || !signatureBase64) {
+      return res.status(400).json({ success: false, message: "result and signatureBase64 are required" });
+    }
+
+    const technicianId = (req.user as any)?._id?.toString();
+    const technicianName = (req.user as any)?.name ?? "Technician";
+
+    const updated = await submitRequestChecklistService(id, technicianId, technicianName, {
+      items: items ?? [],
+      result,
+      signatureBase64,
+    });
+
+    if (!updated) return res.status(404).json({ success: false, message: "Request not found" });
+
+    res.status(200).json({ success: true, data: updated });
   } catch (error: any) {
     next(new ErrorHandler(error.message ?? "Something went wrong", 400));
   }

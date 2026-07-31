@@ -1,5 +1,6 @@
 import EquipmentModel from "../models/equipment.model.js";
 import MaintenanceRequestModel, {
+  DEFAULT_CHECKLIST_ITEMS,
   IMaintenanceRequest,
   MaintenanceStatus,
 } from "../models/Maintenancerequest.model.js";
@@ -7,7 +8,10 @@ import MaintenanceMessageModel from "../models/MaintenanceMessage.model.js";
 import sendMail from "../utils/sendMail.js";
 import { handleMediaUploads } from "./equipment.service.js";
 import { PRIORITY_MAP } from "../@types/equipment.constants.js";
-
+import { uploadMedia } from "../utils/uploadImages.js";
+import fs from "fs/promises";
+import os from "os";
+import path from "path";
 // ─── Frontend-facing shapes (mirrors Maintenanceapi.ts on the frontend) ──────
 
 export interface StageInfo {
@@ -34,6 +38,7 @@ export interface MaintenanceRequestDTO {
     model: string | null;
     restaurant: string | null;
   } | null;
+  
   category: { id: number; name: string } | null;
   maintenanceTeam: { id: number; name: string } | null;
   technicians: { id: string; name: string }[];
@@ -46,6 +51,12 @@ export interface MaintenanceRequestDTO {
   isRecurring: boolean;
   color: number;
   media: { url: string; type: "image" | "video" }[];
+  checklist: {
+    items: { id: string; label: string; checked: boolean }[];
+    result: "pass" | "flag" | "fail" | null;
+    signatureUrl: string | null;
+    completedAt: string | null;
+  };
 }
 
 export interface MaintenanceMessageDTO {
@@ -116,6 +127,12 @@ function transformRequest(
     isRecurring: false, // no recurrence support yet
     color: 0,
     media: (r.media ?? []).map((m) => ({ url: m.url, type: m.type })),
+    checklist: {
+  items: r.checklist?.items ?? [],
+  result: r.checklist?.result ?? null,
+  signatureUrl: r.checklist?.signatureUrl ?? null,
+  completedAt: r.checklist?.completedAt ? new Date(r.checklist.completedAt).toISOString() : null,
+},
   };
 }
 
@@ -363,6 +380,79 @@ export async function createManagerMaintenanceRequest(input: CreateManagerReques
     }
   }
 
+  const equipmentMap = await buildEquipmentMap([request.equipmentId]);
+  return transformRequest(request as any, equipmentMap);
+}
+
+// ─── Technician: get only requests assigned to me ────────────────────────
+export async function getMyMaintenanceRequests(technicianId: string) {
+  const requests = await MaintenanceRequestModel.find({
+    "technicians.id": technicianId,
+  })
+    .sort({ createdAt: -1 })
+    .lean();
+
+  const equipmentMap = await buildEquipmentMap(requests.map((r) => r.equipmentId));
+  return {
+    requests: requests.map((r) => transformRequest(r as any, equipmentMap)),
+    total: requests.length,
+  };
+}
+
+async function uploadSignatureImage(base64: string) {
+  const cleaned = base64.replace(/^data:image\/\w+;base64,/, "");
+  const tempPath = path.join(os.tmpdir(), `sig-${Date.now()}.png`);
+  await fs.writeFile(tempPath, cleaned, "base64");
+  try {
+    const result = await uploadMedia(tempPath, "image");
+    return { url: result.url, public_id: result.public_id };
+  } finally {
+    await fs.unlink(tempPath).catch(() => {});
+  }
+}
+
+// ─── Technician: submit checklist + signature for a request ─────────────
+export async function submitRequestChecklistService(
+  requestId: number,
+  technicianId: string,
+  technicianName: string,
+  input: {
+    items: { id: string; checked: boolean }[];
+    result: "pass" | "flag" | "fail";
+    signatureBase64: string;
+  },
+) {
+  const request = await MaintenanceRequestModel.findOne({ id: requestId });
+  if (!request) return null;
+
+  const isAssigned = request.technicians.some((t) => t.id === technicianId);
+  if (!isAssigned) throw new Error("You are not assigned to this request");
+
+  const { url, public_id } = await uploadSignatureImage(input.signatureBase64);
+
+  const mergedItems = (request.checklist?.items?.length
+    ? request.checklist.items
+    : DEFAULT_CHECKLIST_ITEMS
+  ).map((existing) => {
+    const match = input.items.find((i) => i.id === existing.id);
+    return match ? { ...existing, checked: match.checked } : existing;
+  });
+
+  request.checklist = {
+    items: mergedItems,
+    result: input.result,
+    signatureUrl: url,
+    signaturePublicId: public_id,
+    completedAt: new Date(),
+    completedBy: technicianName,
+  };
+
+  if (input.result === "pass") {
+    request.status = "done";
+    request.closeDate = new Date();
+  }
+
+  await request.save();
   const equipmentMap = await buildEquipmentMap([request.equipmentId]);
   return transformRequest(request as any, equipmentMap);
 }
