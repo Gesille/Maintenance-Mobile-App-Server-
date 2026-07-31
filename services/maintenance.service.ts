@@ -128,7 +128,7 @@ function transformRequest(
     color: 0,
     media: (r.media ?? []).map((m) => ({ url: m.url, type: m.type })),
     checklist: {
-  items: r.checklist?.items ?? [],
+  items: (r.checklist?.items?.length ? r.checklist.items : DEFAULT_CHECKLIST_ITEMS),
   result: r.checklist?.result ?? null,
   signatureUrl: r.checklist?.signatureUrl ?? null,
   completedAt: r.checklist?.completedAt ? new Date(r.checklist.completedAt).toISOString() : null,
