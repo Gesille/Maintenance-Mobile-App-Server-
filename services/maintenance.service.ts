@@ -7,6 +7,7 @@ import MaintenanceRequestModel, {
 import MaintenanceMessageModel from "../models/MaintenanceMessage.model.js";
 import sendMail from "../utils/sendMail.js";
 import { handleMediaUploads } from "./equipment.service.js";
+import { consumePartsForRequest } from "./Part.service.js";
 import { PRIORITY_MAP } from "../@types/equipment.constants.js";
 import { uploadMedia } from "../utils/uploadImages.js";
 import fs from "fs/promises";
@@ -57,6 +58,11 @@ export interface MaintenanceRequestDTO {
     signatureUrl: string | null;
     completedAt: string | null;
   };
+  partsUsed: {
+    partId: number;
+    partName: string | null;
+    quantity: number;
+  }[];
 }
 
 export interface MaintenanceMessageDTO {
@@ -133,6 +139,11 @@ function transformRequest(
   signatureUrl: r.checklist?.signatureUrl ?? null,
   completedAt: r.checklist?.completedAt ? new Date(r.checklist.completedAt).toISOString() : null,
 },
+    partsUsed: ((r as any).partsUsed ?? []).map((p: any) => ({
+      partId: p.partId,
+      partName: p.partName ?? null,
+      quantity: p.quantity,
+    })),
   };
 }
 
@@ -228,9 +239,10 @@ export async function postRequestComment(
   });
 
   return {
-    id: (message._id as any).toString(),
+    id: 0,
+    type: "comment" as const,
+    author: { id: 0, name: message.authorName },
     body: message.body,
-    authorName: message.authorName,
     date: new Date((message as any).createdAt).toISOString(),
     isInternal: message.isInternal,
   };
@@ -412,6 +424,9 @@ async function uploadSignatureImage(base64: string) {
 }
 
 // ─── Technician: submit checklist + signature for a request ─────────────
+// NEW: optional partsUsed[] — parts consumed on this job. Consumed BEFORE the
+// checklist/status is saved, so an insufficient-stock error blocks completion
+// instead of silently leaving inventory wrong.
 export async function submitRequestChecklistService(
   requestId: number,
   technicianId: string,
@@ -420,6 +435,7 @@ export async function submitRequestChecklistService(
     items: { id: string; checked: boolean }[];
     result: "pass" | "flag" | "fail";
     signatureBase64: string;
+    partsUsed?: { partId: number; quantity: number }[];
   },
 ) {
   const request = await MaintenanceRequestModel.findOne({ id: requestId });
@@ -427,6 +443,22 @@ export async function submitRequestChecklistService(
 
   const isAssigned = request.technicians.some((t) => t.id === technicianId);
   if (!isAssigned) throw new Error("You are not assigned to this request");
+
+  // Consume parts first — if stock is insufficient this throws and nothing
+  // about the request is modified.
+  let consumedParts: { partId: number; partName: string | null; quantity: number }[] = [];
+  if (input.partsUsed?.length) {
+    const updatedParts = await consumePartsForRequest(
+      requestId,
+      input.partsUsed,
+      { id: technicianId, name: technicianName },
+    );
+    consumedParts = input.partsUsed.map((used, i) => ({
+      partId: used.partId,
+      partName: (updatedParts[i] as any)?.name ?? null,
+      quantity: used.quantity,
+    }));
+  }
 
   const { url, public_id } = await uploadSignatureImage(input.signatureBase64);
 
@@ -446,6 +478,10 @@ export async function submitRequestChecklistService(
     completedAt: new Date(),
     completedBy: technicianName,
   };
+
+  if (consumedParts.length) {
+    (request as any).partsUsed = [...((request as any).partsUsed ?? []), ...consumedParts];
+  }
 
   if (input.result === "pass") {
     request.status = "done";
