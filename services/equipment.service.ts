@@ -409,3 +409,30 @@ export async function generateMissingQRsService() {
 
 
 
+export const fetchEquipmentCategories = async () => {
+  const categories = await EquipmentModel.aggregate([
+    {
+      $match: {
+        category: { $exists: true, $ne: null, $ne: "" }
+      }
+    },
+    {
+      $group: {
+        _id: "$category"
+      }
+    },
+    {
+      $project: {
+        _id: 0,
+        name: "$_id"
+      }
+    },
+    {
+      $sort: {
+        name: 1
+      }
+    }
+  ]);
+
+  return categories;
+};
