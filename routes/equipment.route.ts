@@ -7,13 +7,12 @@ import {
   generateMissingQRs,
   getAllEquipment,
   getEquipmentById,
-  getEquipmentCategories,
   printAllQRPdf,
   printSingleQRPdf,
   scanEquipmentQR,
   updateEquipment,
 } from "../controllers/equipment.controller.js";
-import { authorizeRoles, isAuthenticated } from "../middleware/auth.js";
+import { isAuthenticated } from "../middleware/auth.js";
 import { refreshTokenMiddleware } from "../controllers/user.controller.js";
 import { getAllMaintenanceRequests } from "../controllers/maintenance.controller.js";
 import { uploadMaintenanceMedia } from "../middleware/upload.js";
@@ -42,9 +41,5 @@ equipmentRouter.get(
 equipmentRouter.post("/create-equipment", refreshTokenMiddleware, isAuthenticated, createEquipment);
 equipmentRouter.put("/update-equipment/:id", refreshTokenMiddleware, isAuthenticated, updateEquipment);
 equipmentRouter.delete("/delete-equipment/:id", refreshTokenMiddleware, isAuthenticated, deleteEquipment);
-equipmentRouter.get(
- "/equipment-categories",
-isAuthenticated,authorizeRoles("manager"),
- getEquipmentCategories
-);
+
 export default equipmentRouter;

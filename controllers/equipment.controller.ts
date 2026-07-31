@@ -15,7 +15,6 @@ import {
   updateEquipmentService,
   generateEquipmentQRService,
   generateMissingQRsService,
-  fetchEquipmentCategories,
 } from "../services/equipment.service.js";
 
 // ─── Get all equipment ─────────────────────────────────────────────────────────
@@ -393,27 +392,3 @@ export const generateMissingQRs = async (
   }
 };
 
-export const getEquipmentCategories = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
-
-    const categories = await fetchEquipmentCategories();
-
-    res.status(200).json({
-      success:true,
-      total: categories.length,
-      data: categories
-    });
-
-  } catch(error:any){
-    return next(
-      new ErrorHandler(
-        error.message || "Something went wrong",
-        400
-      )
-    );
-  }
-};
