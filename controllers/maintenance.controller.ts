@@ -10,8 +10,10 @@ import {
   assignTechniciansService,
   createManagerMaintenanceRequest,
   setMaintenanceScheduleDate,
-  submitRequestChecklistService,
+  
   getMyMaintenanceRequests,
+  submitUserReviewService,
+  getReportedRequestsService,
 } from "../services/maintenance.service.js";
 import { MaintenanceStatus, VALID_STATUSES } from "../models/Maintenancerequest.model.js";
 
@@ -302,42 +304,66 @@ export const getMyAssignedRequests = async (req: Request, res: Response, next: N
   }
 };
 
-export const submitRequestChecklist = async (req: Request, res: Response, next: NextFunction) => {
+export const completeRequestByTechnician = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const id = parseInt(req.params.id as string);
     if (isNaN(id)) return res.status(400).json({ success: false, message: "Invalid ID" });
 
-   const {
-  items,
-  result,
-  signatureBase64,
-  partsUsed,
-} = req.body as {
-  items: { id: string; checked: boolean }[];
-  result: "pass" | "flag" | "fail";
-  signatureBase64: string;
-  partsUsed?: {
-    partId: number;
-    quantity: number;
-  }[];
-};
-    if (!result || !signatureBase64) {
-      return res.status(400).json({ success: false, message: "result and signatureBase64 are required" });
-    }
-
+    const { completionNotes } = req.body as { completionNotes?: string };
     const technicianId = (req.user as any)?._id?.toString();
     const technicianName = (req.user as any)?.name ?? "Technician";
 
-    const updated = await submitRequestChecklistService(id, technicianId, technicianName, {
-      items: items ?? [],
-      result,
+    const updated = await submitTechnicianCompletionService(id, technicianId, technicianName, completionNotes);
+    if (!updated) return res.status(404).json({ success: false, message: "Request not found" });
+
+    res.status(200).json({ success: true, data: updated });
+  } catch (error: any) {
+    next(new ErrorHandler(error.message ?? "Something went wrong", 400));
+  }
+};
+
+export const submitUserReview = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const id = parseInt(req.params.id as string);
+    if (isNaN(id)) return res.status(400).json({ success: false, message: "Invalid ID" });
+
+    const { criteria, overallRating, comment, signatureBase64 } = req.body as {
+      criteria: { professionalism: number; communication: number; quality: number };
+      overallRating: number;
+      comment?: string;
+      signatureBase64: string;
+    };
+
+    if (!criteria || !overallRating || !signatureBase64) {
+      return res.status(400).json({
+        success: false,
+        message: "criteria, overallRating and signatureBase64 are required",
+      });
+    }
+
+    const userEmail = (req.user as any)?.email;
+    const userName = (req.user as any)?.name ?? "Customer";
+
+    const updated = await submitUserReviewService(id, userEmail, userName, {
+      criteria,
+      overallRating,
+      comment,
       signatureBase64,
-      partsUsed,
     });
 
     if (!updated) return res.status(404).json({ success: false, message: "Request not found" });
 
     res.status(200).json({ success: true, data: updated });
+  } catch (error: any) {
+    next(new ErrorHandler(error.message ?? "Something went wrong", 400));
+  }
+};
+
+export const getMyReportedRequests = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userEmail = (req.user as any)?.email;
+    const data = await getReportedRequestsService(userEmail);
+    res.status(200).json({ success: true, data });
   } catch (error: any) {
     next(new ErrorHandler(error.message ?? "Something went wrong", 400));
   }

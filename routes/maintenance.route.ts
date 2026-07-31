@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { authorizeRoles, isAuthenticated } from "../middleware/auth.js";
-import { assignTechnicians, createMaintenanceRequestManual, deleteMaintenanceRequest, getAllMaintenanceRequests, getMaintenanceRequestDetail, getMaintenanceRequestMessages, getMyAssignedRequests, postMaintenanceRequestComment, submitRequestChecklist, updateMaintenanceRequestSchedule, updateMaintenanceRequestStatus } from "../controllers/maintenance.controller.js";
+import { assignTechnicians, completeRequestByTechnician, createMaintenanceRequestManual, deleteMaintenanceRequest, getAllMaintenanceRequests, getMaintenanceRequestDetail, getMaintenanceRequestMessages, getMyAssignedRequests, getMyReportedRequests, postMaintenanceRequestComment, submitUserReview, updateMaintenanceRequestSchedule, updateMaintenanceRequestStatus } from "../controllers/maintenance.controller.js";
 import { uploadMaintenanceMedia } from "../middleware/upload.js";
 
 
@@ -21,6 +21,9 @@ maintenanceRouter.post(
   createMaintenanceRequestManual,
 );
 maintenanceRouter.patch("/maintenance-schedule/:id", isAuthenticated, updateMaintenanceRequestSchedule);
-maintenanceRouter.get("/get-my-requests", isAuthenticated, authorizeRoles("technician"),getMyAssignedRequests);
-maintenanceRouter.patch("/submit-checklist/:id", isAuthenticated, authorizeRoles("technician"),submitRequestChecklist);
+maintenanceRouter.get("/get-my-requests", isAuthenticated, authorizeRoles("technician"), getMyAssignedRequests);
+maintenanceRouter.patch("/complete-request/:id", isAuthenticated, authorizeRoles("technician"), completeRequestByTechnician);
+
+maintenanceRouter.get("/get-my-reported-requests", isAuthenticated, authorizeRoles("user"), getMyReportedRequests);
+maintenanceRouter.patch("/submit-review/:id", isAuthenticated, authorizeRoles("user"), submitUserReview);
 export default maintenanceRouter;

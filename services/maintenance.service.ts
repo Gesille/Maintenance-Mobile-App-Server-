@@ -52,11 +52,16 @@ export interface MaintenanceRequestDTO {
   isRecurring: boolean;
   color: number;
   media: { url: string; type: "image" | "video" }[];
-  checklist: {
-    items: { id: string; label: string; checked: boolean }[];
-    result: "pass" | "flag" | "fail" | null;
+  technicianCompletedAt: string | null;
+  technicianCompletedBy: string | null;
+  completionNotes: string | null;
+  review: {
+    criteria: { professionalism: number; communication: number; quality: number } | null;
+    overallRating: number | null;
+    comment: string | null;
     signatureUrl: string | null;
-    completedAt: string | null;
+    ratedAt: string | null;
+    ratedBy: string | null;
   };
   partsUsed: {
     partId: number;
@@ -76,14 +81,12 @@ export interface MaintenanceMessageDTO {
 }
 
 // ─── Stage derivation ─────────────────────────────────────────────────────────
-// There's no separate "stage" collection in Mongo — status IS the stage.
-// This gives the frontend a stable, ordered list to render as kanban columns.
-
 const STAGE_MAP: Record<MaintenanceStatus, StageInfo> = {
   new: { id: 1, name: "New", sequence: 1, isfold: false },
   under_repair: { id: 2, name: "Under Repair", sequence: 2, isfold: false },
-  done: { id: 3, name: "Done", sequence: 3, isfold: true },
-  cancel: { id: 4, name: "Cancelled", sequence: 4, isfold: true },
+  pending_review: { id: 3, name: "Pending Review", sequence: 3, isfold: false },
+  done: { id: 4, name: "Done", sequence: 4, isfold: true },
+  cancel: { id: 5, name: "Cancelled", sequence: 5, isfold: true },
 };
 
 export const ALL_STAGES: StageInfo[] = Object.values(STAGE_MAP);
@@ -133,11 +136,16 @@ function transformRequest(
     isRecurring: false, // no recurrence support yet
     color: 0,
     media: (r.media ?? []).map((m) => ({ url: m.url, type: m.type })),
-    checklist: {
-  items: (r.checklist?.items?.length ? r.checklist.items : DEFAULT_CHECKLIST_ITEMS),
-  result: r.checklist?.result ?? null,
-  signatureUrl: r.checklist?.signatureUrl ?? null,
-  completedAt: r.checklist?.completedAt ? new Date(r.checklist.completedAt).toISOString() : null,
+    technicianCompletedAt: r.technicianCompletedAt ? new Date(r.technicianCompletedAt).toISOString() : null,
+technicianCompletedBy: r.technicianCompletedBy ?? null,
+completionNotes: r.completionNotes ?? null,
+review: {
+  criteria: r.review?.criteria ?? null,
+  overallRating: r.review?.overallRating ?? null,
+  comment: r.review?.comment ?? null,
+  signatureUrl: r.review?.signatureUrl ?? null,
+  ratedAt: r.review?.ratedAt ? new Date(r.review.ratedAt).toISOString() : null,
+  ratedBy: r.review?.ratedBy ?? null,
 },
     partsUsed: ((r as any).partsUsed ?? []).map((p: any) => ({
       partId: p.partId,
@@ -422,21 +430,12 @@ async function uploadSignatureImage(base64: string) {
     await fs.unlink(tempPath).catch(() => {});
   }
 }
-
-// ─── Technician: submit checklist + signature for a request ─────────────
-// NEW: optional partsUsed[] — parts consumed on this job. Consumed BEFORE the
-// checklist/status is saved, so an insufficient-stock error blocks completion
-// instead of silently leaving inventory wrong.
-export async function submitRequestChecklistService(
+// ─── Technician: mark request complete → moves to pending_review ────────
+export async function submitTechnicianCompletionService(
   requestId: number,
   technicianId: string,
   technicianName: string,
-  input: {
-    items: { id: string; checked: boolean }[];
-    result: "pass" | "flag" | "fail";
-    signatureBase64: string;
-    partsUsed?: { partId: number; quantity: number }[];
-  },
+  completionNotes?: string,
 ) {
   const request = await MaintenanceRequestModel.findOne({ id: requestId });
   if (!request) return null;
@@ -444,51 +443,66 @@ export async function submitRequestChecklistService(
   const isAssigned = request.technicians.some((t) => t.id === technicianId);
   if (!isAssigned) throw new Error("You are not assigned to this request");
 
-  // Consume parts first — if stock is insufficient this throws and nothing
-  // about the request is modified.
-  let consumedParts: { partId: number; partName: string | null; quantity: number }[] = [];
-  if (input.partsUsed?.length) {
-    const updatedParts = await consumePartsForRequest(
-      requestId,
-      input.partsUsed,
-      { id: technicianId, name: technicianName },
-    );
-    consumedParts = input.partsUsed.map((used, i) => ({
-      partId: used.partId,
-      partName: (updatedParts[i] as any)?.name ?? null,
-      quantity: used.quantity,
-    }));
-  }
-
-  const { url, public_id } = await uploadSignatureImage(input.signatureBase64);
-
-  const mergedItems = (request.checklist?.items?.length
-    ? request.checklist.items
-    : DEFAULT_CHECKLIST_ITEMS
-  ).map((existing) => {
-    const match = input.items.find((i) => i.id === existing.id);
-    return match ? { ...existing, checked: match.checked } : existing;
-  });
-
-  request.checklist = {
-    items: mergedItems,
-    result: input.result,
-    signatureUrl: url,
-    signaturePublicId: public_id,
-    completedAt: new Date(),
-    completedBy: technicianName,
-  };
-
-  if (consumedParts.length) {
-    (request as any).partsUsed = [...((request as any).partsUsed ?? []), ...consumedParts];
-  }
-
-  if (input.result === "pass") {
-    request.status = "done";
-    request.closeDate = new Date();
-  }
+  request.status = "pending_review";
+  request.technicianCompletedAt = new Date();
+  request.technicianCompletedBy = technicianName;
+  if (completionNotes?.trim()) request.completionNotes = completionNotes.trim();
 
   await request.save();
   const equipmentMap = await buildEquipmentMap([request.equipmentId]);
   return transformRequest(request as any, equipmentMap);
+}
+
+// ─── User: submit performance review + signature → closes the request ───
+export async function submitUserReviewService(
+  requestId: number,
+  userEmail: string,
+  userName: string,
+  input: {
+    criteria: { professionalism: number; communication: number; quality: number };
+    overallRating: number;
+    comment?: string;
+    signatureBase64: string;
+  },
+) {
+  const request = await MaintenanceRequestModel.findOne({ id: requestId });
+  if (!request) return null;
+
+  if (request.reportedByEmail?.toLowerCase() !== userEmail?.toLowerCase()) {
+    throw new Error("You did not report this request");
+  }
+  if (request.status !== "pending_review") {
+    throw new Error("This request is not awaiting a review yet");
+  }
+
+  const { url, public_id } = await uploadSignatureImage(input.signatureBase64);
+
+  request.review = {
+    criteria: input.criteria,
+    overallRating: input.overallRating,
+    comment: input.comment?.trim() || null,
+    signatureUrl: url,
+    signaturePublicId: public_id,
+    ratedAt: new Date(),
+    ratedBy: userName,
+  };
+  request.status = "done";
+  request.closeDate = new Date();
+
+  await request.save();
+  const equipmentMap = await buildEquipmentMap([request.equipmentId]);
+  return transformRequest(request as any, equipmentMap);
+}
+
+// ─── User: get requests they reported (any status) ───────────────────────
+export async function getReportedRequestsService(userEmail: string) {
+  const requests = await MaintenanceRequestModel.find({ reportedByEmail: userEmail })
+    .sort({ createdAt: -1 })
+    .lean();
+
+  const equipmentMap = await buildEquipmentMap(requests.map((r) => r.equipmentId));
+  return {
+    requests: requests.map((r) => transformRequest(r as any, equipmentMap)),
+    total: requests.length,
+  };
 }

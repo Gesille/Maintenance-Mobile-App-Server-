@@ -161,6 +161,7 @@ export async function getStatusBreakdown(
   const counts: Record<MaintenanceStatus, number> = {
     new: 0,
     under_repair: 0,
+    pending_review:0,
     done: 0,
     cancel: 0,
   };

@@ -1,6 +1,6 @@
 import mongoose, { Document, Model, Schema } from "mongoose";
 
-export type MaintenanceStatus = "new" | "under_repair" | "done" | "cancel";
+export type MaintenanceStatus = "new" | "under_repair" | "done" | "cancel" |"pending_review";
 export const VALID_STATUSES: MaintenanceStatus[] = ["new", "under_repair", "done", "cancel"];
 
 export interface IMaintenanceMedia {
@@ -14,27 +14,22 @@ export interface ITechnicianRef {
   name: string;
   email: string;
 }
-
-// ─── Checklist types ──────────────────────────────────────────────────────
-export interface IChecklistItem {
-  id: string;
-  label: string;
-  checked: boolean;
+export interface IReviewCriteria {
+  professionalism: number; // 1-5
+  communication: number;   // 1-5
+  quality: number;         // 1-5
 }
 
-export interface IChecklist {
-  items: IChecklistItem[];
-  result: "pass" | "flag" | "fail" | null;
+export interface IPerformanceReview {
+  criteria: IReviewCriteria | null;
+  overallRating: number | null; // 1-5
+  comment: string | null;
   signatureUrl: string | null;
   signaturePublicId: string | null;
-  completedAt: Date | null;
-  completedBy: string | null;
+  ratedAt: Date | null;
+  ratedBy: string | null;
 }
 
-export const DEFAULT_CHECKLIST_ITEMS: IChecklistItem[] = [
-  { id: "c1", label: "Inspect surroundings for leaks, sounds, damage", checked: false },
-  { id: "c2", label: "Isolate and lockout/tagout compressor", checked: false },
-];
 
 export interface IMaintenanceRequest extends Document {
   id: number;
@@ -50,7 +45,10 @@ export interface IMaintenanceRequest extends Document {
   scheduleDate: Date | null;
   closeDate: Date | null;
   media: IMaintenanceMedia[];
-  checklist: IChecklist;               
+   technicianCompletedAt: Date | null;
+  technicianCompletedBy: string | null;
+  completionNotes: string | null;
+  review: IPerformanceReview;           
   createdAt: Date;
   updatedAt: Date;
    partsUsed: IUsedPart[];
@@ -101,27 +99,28 @@ const technicianSchema = new Schema<ITechnicianRef>(
   { _id: false },
 );
 
-// ─── Checklist sub-schemas ─────────────────────────────────────────────────
-const checklistItemSchema = new Schema<IChecklistItem>(
+
+const reviewCriteriaSchema = new Schema<IReviewCriteria>(
   {
-    id: { type: String, required: true },
-    label: { type: String, required: true },
-    checked: { type: Boolean, default: false },
+    professionalism: { type: Number, min: 1, max: 5, required: true },
+    communication: { type: Number, min: 1, max: 5, required: true },
+    quality: { type: Number, min: 1, max: 5, required: true },
+  },
+  { _id: false },
+);
+const reviewSchema = new Schema<IPerformanceReview>(
+  {
+    criteria: { type: reviewCriteriaSchema, default: null },
+    overallRating: { type: Number, min: 1, max: 5, default: null },
+    comment: { type: String, default: null },
+    signatureUrl: { type: String, default: null },
+    signaturePublicId: { type: String, default: null },
+    ratedAt: { type: Date, default: null },
+    ratedBy: { type: String, default: null },
   },
   { _id: false },
 );
 
-const checklistSchema = new Schema<IChecklist>(
-  {
-    items: { type: [checklistItemSchema], default: () => DEFAULT_CHECKLIST_ITEMS },
-    result: { type: String, enum: ["pass", "flag", "fail", null], default: null },
-    signatureUrl: { type: String, default: null },
-    signaturePublicId: { type: String, default: null },
-    completedAt: { type: Date, default: null },
-    completedBy: { type: String, default: null },
-  },
-  { _id: false },
-);
 const usedPartSchema = new Schema<IUsedPart>(
   {
     partId: {
@@ -150,7 +149,7 @@ const maintenanceRequestSchema = new Schema<IMaintenanceRequest>(
     reportedByEmail: { type: String, required: true },
     status: {
       type: String,
-      enum: ["new", "under_repair", "done", "cancel"],
+      enum: ["new", "under_repair","pending_review", "done", "cancel"],
       default: "new",
       index: true,
     },
@@ -164,7 +163,10 @@ const maintenanceRequestSchema = new Schema<IMaintenanceRequest>(
     scheduleDate: { type: Date, default: null },
     closeDate: { type: Date, default: null },
     media: { type: [mediaSchema], default: [] },
-    checklist: { type: checklistSchema, default: () => ({ items: DEFAULT_CHECKLIST_ITEMS }) }, 
+      technicianCompletedAt: { type: Date, default: null },
+    technicianCompletedBy: { type: String, default: null },
+    completionNotes: { type: String, default: null },
+    review: { type: reviewSchema, default: () => ({}) },
      partsUsed: {
    type: [usedPartSchema],
    default: [],
