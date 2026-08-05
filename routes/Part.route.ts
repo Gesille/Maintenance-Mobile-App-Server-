@@ -48,14 +48,14 @@ partRouter.put(
   "/update-part/:id",
   refreshTokenMiddleware,
   isAuthenticated,
-  authorizeRoles("manager"),
+  authorizeRoles("manager","Enduser"),
   updatePart,
 );
 partRouter.delete(
   "/delete-part/:id",
   refreshTokenMiddleware,
   isAuthenticated,
-  authorizeRoles("manager"),
+  authorizeRoles("manager","Enduser"),
   deletePart,
 );
 
@@ -66,7 +66,7 @@ partRouter.patch(
   "/restock/:id",
   refreshTokenMiddleware,
   isAuthenticated,
-  authorizeRoles("manager"),
+  authorizeRoles("manager","Enduser"),
   restockPart,
 );
 partRouter.patch("/consume/:id", refreshTokenMiddleware, isAuthenticated, consumePart);
@@ -74,7 +74,7 @@ partRouter.patch(
   "/adjust/:id",
   refreshTokenMiddleware,
   isAuthenticated,
-  authorizeRoles("manager"),
+  authorizeRoles("manager","Enduser"),
   adjustPartQuantity,
 );
 
@@ -83,14 +83,14 @@ partRouter.post(
   "/link-equipment/:id",
   refreshTokenMiddleware,
   isAuthenticated,
-  authorizeRoles("manager"),
+  authorizeRoles("manager","Enduser"),
   linkPartToEquipment,
 );
 partRouter.delete(
   "/unlink-equipment/:id/:equipmentId",
   refreshTokenMiddleware,
   isAuthenticated,
-  authorizeRoles("manager"),
+  authorizeRoles("manager","Enduser"),
   unlinkPartFromEquipment,
 );
 

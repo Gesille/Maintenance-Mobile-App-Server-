@@ -171,7 +171,7 @@ export const deleteMaintenanceRequest = async (
 ) => {
   try {
     const userRole = (req.user as any)?.role;
-    if (userRole !== "admin" && userRole !== "manager") {
+    if (userRole !== "Enduser" && userRole !== "manager") {
       return next(new ErrorHandler("Not authorized", 403));
     }
 

@@ -7,7 +7,7 @@ import jwt from "jsonwebtoken";
 const emailRegexPattern: RegExp = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export const ROLES = {
-  USER: "user",
+  USER: "Enduser",
   MANAGER: "manager",
   TECHNICIAN: "technician",
 } as const;
@@ -70,7 +70,7 @@ const userSchema: Schema<IUser> = new mongoose.Schema(
     role: {
       type: String,
       enum: Object.values(ROLES),
-      default: "user",
+      default: "Enduser",
     },
     isVerified: {
       type: Boolean,

@@ -24,17 +24,17 @@ userRouter.put('/update-user-pass',refreshTokenMiddleware,isAuthenticated,update
 
 userRouter.put('/update-user-avatar',refreshTokenMiddleware,isAuthenticated,updateProfilePicture);
 
-userRouter.get('/get-users',refreshTokenMiddleware,isAuthenticated,authorizeRoles("manager"),getAllUsers);
+userRouter.get('/get-users',refreshTokenMiddleware,isAuthenticated,authorizeRoles("manager","Enduser"),getAllUsers);
 
 userRouter.put('/update-user',isAuthenticated,authorizeRoles("manager"),updateUserRole);
 
 userRouter.delete('/delete-user/:id',refreshTokenMiddleware,isAuthenticated,authorizeRoles("manager"),deleteUser);
-userRouter.get("/technicians",refreshTokenMiddleware, isAuthenticated,authorizeRoles("manager"), getTechnicians);
+userRouter.get("/technicians",refreshTokenMiddleware, isAuthenticated,authorizeRoles("manager","Enduser"), getTechnicians);
 userRouter.post(
   '/create-user',
   refreshTokenMiddleware,
   isAuthenticated,
-  authorizeRoles("manager"),
+  authorizeRoles("manager","Enduser"),
   createUserByManager,
 );
 export default userRouter;

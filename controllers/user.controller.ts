@@ -48,7 +48,7 @@ interface IRegistrationBody {
 export const registrationUser = CatchAsyncError(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { name, email, password, role = "user" } = req.body;
+      const { name, email, password, role = "Enduser" } = req.body;
       if (!name || !email || !password) {
         return next(new ErrorHandler("All fields are required", 400));
       }
@@ -534,7 +534,7 @@ export const getTechnicians = CatchAsyncError(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const userRole = req.user?.role;
-      if (userRole !== "manager" && userRole !== "admin") {
+      if (userRole !== "manager" && userRole !== "Enduser") {
         return next(new ErrorHandler("Not authorized", 403));
       }
 

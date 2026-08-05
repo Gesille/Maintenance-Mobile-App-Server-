@@ -124,7 +124,7 @@ export const getTicketById = CatchAsyncError(
 export const getAllTickets = CatchAsyncError(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      if (req.user?.role !== "admin" && req.user?.role !== "manager") {
+      if (req.user?.role !== "Enduser" && req.user?.role !== "manager") {
         return next(new ErrorHandler("Not authorized", 403));
       }
 
@@ -153,7 +153,7 @@ export const getAllTickets = CatchAsyncError(
 export const updateTicket = CatchAsyncError(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      if (req.user?.role !== "admin" && req.user?.role !== "manager") {
+      if (req.user?.role !== "Enduser" && req.user?.role !== "manager") {
         return next(new ErrorHandler("Not authorized", 403));
       }
 
