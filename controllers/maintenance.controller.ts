@@ -14,6 +14,7 @@ import {
   getMyMaintenanceRequests,
   submitUserReviewService,
   getReportedRequestsService,
+  submitTechnicianCompletionService,
 } from "../services/maintenance.service.js";
 import { MaintenanceStatus, VALID_STATUSES } from "../models/Maintenancerequest.model.js";
 

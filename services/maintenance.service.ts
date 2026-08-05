@@ -1,6 +1,6 @@
 import EquipmentModel from "../models/equipment.model.js";
 import MaintenanceRequestModel, {
-  DEFAULT_CHECKLIST_ITEMS,
+  
   IMaintenanceRequest,
   MaintenanceStatus,
 } from "../models/Maintenancerequest.model.js";
