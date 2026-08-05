@@ -12,6 +12,9 @@ import supportTicketRouter from "./routes/support_ticket.route.js";
 import reportingRouter from "./routes/Reporting.route.js";
 import partRouter from "./routes/Part.route.js";
 import categoryRouter from "./routes/Category.route.js";
+import purchaseOrderRouter from "./routes/Purchaseorder.route.js";
+
+import meterRouter from "./routes/Meter.route.js";
 
 dotenv.config();
 
@@ -51,6 +54,9 @@ app.use("/api/v1", supportTicketRouter);
 app.use("/api/v1", reportingRouter);
 app.use("/api/v1", partRouter);
 app.use("/api/v1", categoryRouter);
+app.use("/api/v1", purchaseOrderRouter);
+app.use("/api/v1", meterRouter);
+
 // Test route
 app.get("/test", (req: Request, res: Response, next: NextFunction) => {
     res.status(200).json({
