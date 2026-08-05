@@ -19,7 +19,7 @@ import meterRouter from "./routes/Meter.route.js";
 dotenv.config();
 
 export const app = express();
-
+app.set("trust proxy", 1);
 // Body parser
 app.use(express.json());
 app.use(express.urlencoded({ extended: true })); 

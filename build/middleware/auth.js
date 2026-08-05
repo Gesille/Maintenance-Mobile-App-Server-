@@ -11,7 +11,7 @@ export const isAuthenticated = CatchAsyncError(async (req, res, next) => {
     if (!ACCESS_TOKEN_SECRET) {
         return next(new ErrorHandler("Please login to access this resource", 401));
     }
-    console.log("ACCESS TOKEN:", ACCESS_TOKEN_SECRET);
+   
     try {
         const decoded = jwt.verify(ACCESS_TOKEN_SECRET, process.env.ACCESS_TOKEN_SECRET);
         const user = await userModel.findById(decoded.id);
