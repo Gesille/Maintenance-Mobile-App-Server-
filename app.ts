@@ -20,7 +20,10 @@ dotenv.config();
 
 export const app = express();
 app.set("trust proxy", 1);
-// Body parser
+
+
+
+// Body Parser
 app.use(express.json());
 app.use(express.urlencoded({ extended: true })); 
 // Cookie parser
