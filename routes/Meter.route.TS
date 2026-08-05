@@ -48,8 +48,7 @@ meterRouter.delete(
   removeMeterTrigger,
 );
 
-// Recording a reading — technicians do this in the field, same as MaintainX
-// lets any Full User or technician log a reading.
+
 meterRouter.post(
   "/record-reading/:id",
   isAuthenticated,
