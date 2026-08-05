@@ -26,9 +26,9 @@ userRouter.put('/update-user-avatar',refreshTokenMiddleware,isAuthenticated,upda
 
 userRouter.get('/get-users',refreshTokenMiddleware,isAuthenticated,authorizeRoles("manager","Enduser"),getAllUsers);
 
-userRouter.put('/update-user',isAuthenticated,authorizeRoles("manager"),updateUserRole);
+userRouter.put('/update-user',isAuthenticated,authorizeRoles("manager","Enduser"),updateUserRole);
 
-userRouter.delete('/delete-user/:id',refreshTokenMiddleware,isAuthenticated,authorizeRoles("manager"),deleteUser);
+userRouter.delete('/delete-user/:id',refreshTokenMiddleware,isAuthenticated,authorizeRoles("manager","Enduser"),deleteUser);
 userRouter.get("/technicians",refreshTokenMiddleware, isAuthenticated,authorizeRoles("manager","Enduser"), getTechnicians);
 userRouter.post(
   '/create-user',
