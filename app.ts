@@ -60,7 +60,7 @@ app.use("/api/v1", categoryRouter);
 app.use("/api/v1", purchaseOrderRouter);
 app.use("/api/v1", meterRouter);
 
-// Test route
+
 app.get("/test", (req: Request, res: Response, next: NextFunction) => {
     res.status(200).json({
         success: true,
