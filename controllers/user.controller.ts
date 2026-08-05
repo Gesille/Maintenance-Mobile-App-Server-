@@ -410,7 +410,7 @@ export const getAllUsers = CatchAsyncError(
     try {
       const userRole = req.user?.role;
 
-      if (userRole !== "manager") {
+      if (userRole !== "manager" && userRole !== "Enduser") {
         return next(
           new ErrorHandler("You are not authorized to view all users", 403),
         );
@@ -428,7 +428,7 @@ export const updateUserRole = CatchAsyncError(
     try {
       const userRole = req.user?.role;
 
-      if (userRole !== "manager") {
+      if (userRole !== "manager" && userRole !== "Enduser") {
         return next(
           new ErrorHandler("You are not authorized to update user roles", 403),
         );
@@ -469,7 +469,7 @@ export const deleteUser = CatchAsyncError(
     try {
       const userRole = req.user?.role;
 
-      if (userRole !== "manager") {
+      if (userRole !== "manager" && userRole !== "Enduser") {
         return next(
           new ErrorHandler("You are not authorized to delete users", 403),
         );
@@ -493,7 +493,7 @@ export const createUserByManager = CatchAsyncError(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const managerRole = req.user?.role;
-      if (managerRole !== "manager") {
+      if (managerRole !== "manager" && managerRole !== "Enduser") {
         return next(new ErrorHandler("You are not authorized to add users", 403));
       }
 
