@@ -41,7 +41,7 @@ partRouter.post(
   "/create-part",
   refreshTokenMiddleware,
   isAuthenticated,
-  authorizeRoles("manager"),
+  authorizeRoles("manager","Enduser"),
   createPart,
 );
 partRouter.put(
